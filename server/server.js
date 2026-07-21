@@ -27,11 +27,13 @@ if (!apiKey) {
 const genAI = new GoogleGenerativeAI(apiKey);
 const fileManager = new GoogleAIFileManager(apiKey);
 
-// Fallback Model Hierarchy to bypass Free Tier Rate Limits
+// Fallback Model Hierarchy using valid next-gen models to bypass Rate Limits
 const FALLBACK_MODELS = [
     "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-1.5-flash"
+    "gemini-3-flash",
+    "gemini-2-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash-lite"
 ];
 
 app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
