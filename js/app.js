@@ -368,7 +368,7 @@ const app = (() => {
                 startLoadingAnimation();
 
                 try {
-                    const response = await fetch('http://localhost:3000/api/analyze', { method: 'POST', body: formData });
+                    const response = await fetch('https://slfquran.onrender.com/api/analyze', { method: 'POST', body: formData });
                     if (!response.ok) throw new Error("API failed");
                     
                     const aiResult = await response.json();
