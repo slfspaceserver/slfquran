@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quran AI Coach</title>
+    <!-- Added Noto Sans Malayalam for premium regional typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Amiri:wght@400;700&family=Noto+Sans+Malayalam:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Small addition for Malayalam font support */
+        body.lang-ml {
+            font-family: 'Noto Sans Malayalam', 'Inter', sans-serif;
+        }
+        .lang-toggle {
+            background: rgba(15, 174, 150, 0.1);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .lang-toggle:hover {
+            background: var(--primary);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- TOP NAVBAR -->
+        <header class="app-header">
+            <div class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                </svg>
+                <span data-i18n="app_title">Quran AI Coach</span>
+            </div>
+            
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button class="lang-toggle" onclick="app.toggleLanguage()" id="lang-btn">മലയാളം</button>
+                <div class="header-actions" id="back-btn-container" style="display: none;">
+                    <button class="icon-btn" onclick="app.goBack()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="19" y1="12" x2="5" y2="12"></line>
+                            <polyline points="12 19 5 12 12 5"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="app-main">
+            <!-- Auth View -->
+<!-- Auth View -->
+<div id="auth-view" class="view active">
+    <div class="auth-card glass-card">
+        <h2 style="margin-bottom: 0.5rem;" class="text-primary">Quran AI Coach</h2>
+        <p style="color: var(--text-sec); margin-bottom: 1.5rem; font-size: 0.85rem;">Sign in to save your practice history</p>
+        
+        <div id="login-form">
+            <input type="email" id="auth-email" placeholder="Email Address" class="auth-input">
+            <input type="password" id="auth-password" placeholder="Password" class="auth-input">
+            
+            <button onclick="app.login()" class="auth-btn-primary">Login</button>
+            <button onclick="app.signup()" class="auth-btn-secondary">Create Account</button>
+        </div>
+    </div>
+</div>
+            <!-- VIEW: HOME -->
+            <section id="home-view" class="view active">
+                <div class="hero-section">
+                    <h1 class="hero-title" data-i18n="hero_title">Practice. Improve.<br><span class="text-primary">Recite with Confidence.</span></h1>
+                    <p class="hero-subtitle" data-i18n="hero_sub">Your personal AI-powered Quran recitation assistant.</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card glass-card">
+                        <div class="stat-icon text-accent">🔥</div>
+                        <div class="stat-value">12</div>
+                        <div class="stat-label" data-i18n="daily_streak">Daily Streak</div>
+                    </div>
+                    <div class="stat-card glass-card">
+                        <div class="stat-icon text-primary">🎯</div>
+                        <div class="stat-value">94%</div>
+                        <div class="stat-label" data-i18n="avg_accuracy">Avg Accuracy</div>
+                    </div>
+                    <div class="stat-card glass-card">
+                        <div class="stat-icon">🎙️</div>
+                        <div class="stat-value">48</div>
+                        <div class="stat-label" data-i18n="sessions">Sessions</div>
+                    </div>
+                </div>
+
+                <div class="action-section">
+                    <button class="btn btn-primary btn-large" onclick="app.navigateTo('surah-view')">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        </svg>
+                        <span data-i18n="start_practice">Start Practice</span>
+                    </button>
+                </div>
+
+                <div class="recent-practice">
+                    <div class="section-header">
+                        <h2 data-i18n="recent_practice">Recent Practice</h2>
+                        <button class="btn-text" onclick="app.navigateTo('history-view')" data-i18n="see_all">See All</button>
+                    </div>
+                    <div class="recent-card glass-card" onclick="app.navigateTo('surah-view')">
+                        <div class="recent-info">
+                            <span class="surah-number">112</span>
+                            <div>
+                                <h3>Al-Ikhlas</h3>
+                            </div>
+                        </div>
+                        <div class="recent-score text-primary">96%</div>
+                    </div>
+                </div>
+
+                <div class="disclaimer-card glass-card">
+                    <div class="disclaimer-icon">⚠️</div>
+                    <p data-i18n="disclaimer"><strong>Important:</strong> This application is an AI-assisted learning tool intended to support Quran recitation practice. AI feedback may not always be accurate. Always verify your recitation with a qualified Quran teacher.</p>
+                </div>
+            </section>
+
+            <!-- VIEW: SURAH SELECTION -->
+            <section id="surah-view" class="view">
+                <div class="search-container">
+                    <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" id="surah-search" placeholder="Search Surah..." onkeyup="app.filterSurahs()">
+                </div>
+                <div class="surah-list" id="surah-list"></div>
+            </section>
+
+            <!-- VIEW: RECORD -->
+            <section id="record-view" class="view">
+                <div class="record-header">
+                    <h2 id="record-surah-name">Al-Fatihah</h2>
+                </div>
+                <div class="mic-container">
+                    <div class="mic-waves" id="mic-waves"><div class="wave"></div><div class="wave"></div><div class="wave"></div></div>
+                    <button class="mic-button active" id="btn-mic" onclick="app.toggleRecording()">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                    </button>
+                </div>
+                <div class="timer" id="record-timer">00:00</div>
+                <div class="recording-status text-primary" id="record-status" data-i18n="tap_to_start">Tap to start</div>
+                <div class="record-controls">
+                    <button class="btn btn-outline" onclick="app.cancelRecording()" data-i18n="cancel">Cancel</button>
+                    <button class="btn btn-primary" onclick="app.finishRecording()" data-i18n="finish">Finish & Analyze</button>
+                </div>
+            </section>
+
+            <!-- VIEW: ANALYSIS -->
+            <section id="analysis-view" class="view">
+                <div class="analysis-container">
+                    <div class="loader-circular"></div>
+                    <h2 data-i18n="analyzing">Analyzing your recitation...</h2>
+                    <div class="analysis-steps">
+                        <div class="step active" id="step-1" data-i18n="step_1">Processing audio...</div>
+                        <div class="step" id="step-2" data-i18n="step_2">Converting speech to text...</div>
+                        <div class="step" id="step-3" data-i18n="step_3">Evaluating Tajweed rules...</div>
+                        <div class="step" id="step-4" data-i18n="step_4">Generating feedback...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: RESULTS -->
+            <section id="result-view" class="view">
+                <div class="result-header text-center">
+                    <h2 data-i18n="analysis_complete">Analysis Complete</h2>
+                    <p id="result-surah-name" class="text-accent">Al-Fatihah</p>
+                </div>
+                <div class="overall-score-container glass-card">
+                    <div class="circular-chart primary" id="chart-overall">
+                        <svg viewBox="0 0 36 36" class="circular-svg">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                            <path class="circle-value" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                            <text x="18" y="20.35" class="percentage">95%</text>
+                        </svg>
+                    </div>
+                    <h3 data-i18n="overall_accuracy">Overall Accuracy</h3>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-card glass-card">
+                        <span class="metric-title" data-i18n="pronunciation">Pronunciation</span>
+                        <div class="metric-bar-bg"><div class="metric-bar-fill bg-primary" id="bar-pronunciation" style="width: 0%"></div></div>
+                        <span class="metric-val" id="val-pronunciation">92%</span>
+                    </div>
+                    <div class="metric-card glass-card">
+                        <span class="metric-title" data-i18n="memorization">Memorization</span>
+                        <div class="metric-bar-bg"><div class="metric-bar-fill bg-primary" id="bar-memorization" style="width: 0%"></div></div>
+                        <span class="metric-val" id="val-memorization">98%</span>
+                    </div>
+                    <div class="metric-card glass-card">
+                        <span class="metric-title" data-i18n="tajweed">Tajweed</span>
+                        <div class="metric-bar-bg"><div class="metric-bar-fill bg-accent" id="bar-tajweed" style="width: 0%"></div></div>
+                        <span class="metric-val" id="val-tajweed">90%</span>
+                    </div>
+                </div>
+                <div class="detailed-feedback">
+                    <h3 data-i18n="detailed_feedback">Detailed Feedback</h3>
+                    <div class="feedback-list" id="feedback-list"></div>
+                </div>
+                <button class="btn btn-primary btn-block mt-4" onclick="app.navigateTo('home-view')" data-i18n="done">Done</button>
+            </section>
+
+            <!-- VIEW: PROGRESS -->
+            <section id="progress-view" class="view">
+                <div class="section-header"><h2 data-i18n="progress">Your Progress</h2></div>
+                <div class="chart-card glass-card">
+                    <div class="bar-chart" id="weekly-chart"></div>
+                    <div class="chart-labels"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+                </div>
+            </section>
+
+            <!-- VIEW: HISTORY -->
+            <section id="history-view" class="view">
+                <div class="section-header"><h2 data-i18n="history">Practice History</h2></div>
+                <div class="history-list" id="history-list"></div>
+            </section>
+            
+            <!-- VIEW: SETTINGS -->
+            <section id="settings-view" class="view">
+                <div class="section-header"><h2 data-i18n="settings">Settings</h2></div>
+                <div class="settings-group glass-card mt-4">
+<!-- Replace your current setting-item for Dark Mode with this: -->
+<div class="setting-item">
+    <div>
+        <h4 data-i18n="dark_mode">Dark Mode</h4>
+    </div>
+    <div class="toggle active" onclick="app.toggleTheme()"></div>
+</div>
+                </div>
+            </section>
+        </main>
+
+        <!-- BOTTOM NAVIGATION -->
+        <nav class="bottom-nav">
+            <a href="#" class="nav-item active" data-target="home-view" onclick="app.navigateTo('home-view', event)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                <span data-i18n="nav_home">Home</span>
+            </a>
+            <a href="#" class="nav-item" data-target="progress-view" onclick="app.navigateTo('progress-view', event)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                <span data-i18n="nav_progress">Progress</span>
+            </a>
+            <a href="#" class="nav-item" data-target="history-view" onclick="app.navigateTo('history-view', event)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span data-i18n="nav_history">History</span>
+            </a>
+            <a href="#" class="nav-item" data-target="settings-view" onclick="app.navigateTo('settings-view', event)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <span data-i18n="nav_settings">Settings</span>
+            </a>
+        </nav>
+    </div>
+    <!-- Firebase SDKs (Compat version for easier integration with your current JS) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
