@@ -22,10 +22,10 @@ if (!fs.existsSync('uploads')) {
     fs.mkdirSync('uploads');
 }
 
-// Initialize Gemini SDK using the key from your .env file
+// Initialize Gemini SDK using the key from your environment variables
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
-    console.error("⚠️ GEMINI_API_KEY is missing from your .env file!");
+    console.error("⚠️ GEMINI_API_KEY is missing from your environment variables!");
     process.exit(1);
 }
 
@@ -56,13 +56,15 @@ app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
         
         // 2. Prepare the AI Model
         // We use gemini-2.5-flash because it is lightning fast for multimodal tasks
-        const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        // 3. Craft the strict System Prompt
-      const promptText = `
+        // 3. Craft the strict System Prompt with Kerala Slang Malayalam instruction
+        const promptText = `
             You are an expert, compassionate Quran Tajweed coach. 
             Listen to the user's recitation of Surah ID ${surahId}.
             Evaluate their recitation based on pronunciation, memorization, and Tajweed rules.
+
+            The user prefers Malayalam. You must analyze the audio and provide your feedback strictly in easy-to-understand Malayalam text. Use a warm, conversational Kerala slang to make the user feel comfortable.
             
             Respond ONLY with a valid JSON object matching this exact structure:
             {
@@ -75,10 +77,10 @@ app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
                         "type": "perfect" | "warning" | "error", 
                         "verse": "Verse number", 
                         "msgEn": "English feedback", 
-                        "msgMl": "Malayalam feedback", 
+                        "msgMl": "Malayalam feedback (Use conversational Kerala slang)", 
                         "ar": "The arabic text of the specific mistake (leave empty string if not needed)",
                         "actionEn": "Actionable advice on how to fix this mistake in English",
-                        "actionMl": "Actionable advice on how to fix this mistake in Malayalam"
+                        "actionMl": "Actionable advice on how to fix this mistake in Malayalam (Use conversational Kerala slang)"
                     }
                 ]
             }

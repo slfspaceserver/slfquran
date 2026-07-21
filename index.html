@@ -2,13 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Quran AI Coach</title>
     <!-- Added Noto Sans Malayalam for premium regional typography -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Amiri:wght@400;700&family=Noto+Sans+Malayalam:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <style>
-        /* Small addition for Malayalam font support */
         body.lang-ml {
             font-family: 'Noto Sans Malayalam', 'Inter', sans-serif;
         }
@@ -30,6 +29,17 @@
     </style>
 </head>
 <body>
+    <!-- Initial Loader to prevent Login screen flash -->
+    <div id="initial-loader" class="full-screen-center">
+        <div class="loader-circular"></div>
+    </div>
+
+    <!-- Global Recording Popup (For background recording) -->
+    <div id="recording-popup" class="recording-popup hidden">
+        <span id="recording-text" data-i18n="recording_in_progress">🔴 Recording in progress...</span>
+        <button onclick="app.finishRecording()" class="stop-btn" data-i18n="finish">Finish</button>
+    </div>
+
     <div class="app-container">
         <!-- TOP NAVBAR -->
         <header class="app-header">
@@ -57,23 +67,23 @@
         <!-- MAIN CONTENT AREA -->
         <main class="app-main">
             <!-- Auth View -->
-<!-- Auth View -->
-<div id="auth-view" class="view active">
-    <div class="auth-card glass-card">
-        <h2 style="margin-bottom: 0.5rem;" class="text-primary">Quran AI Coach</h2>
-        <p style="color: var(--text-sec); margin-bottom: 1.5rem; font-size: 0.85rem;">Sign in to save your practice history</p>
-        
-        <div id="login-form">
-            <input type="email" id="auth-email" placeholder="Email Address" class="auth-input">
-            <input type="password" id="auth-password" placeholder="Password" class="auth-input">
-            
-            <button onclick="app.login()" class="auth-btn-primary">Login</button>
-            <button onclick="app.signup()" class="auth-btn-secondary">Create Account</button>
-        </div>
-    </div>
-</div>
+            <div id="auth-view" class="view active">
+                <div class="auth-card glass-card">
+                    <h2 style="margin-bottom: 0.5rem;" class="text-primary">Quran AI Coach</h2>
+                    <p style="color: var(--text-sec); margin-bottom: 1.5rem; font-size: 0.85rem;">Sign in to save your practice history</p>
+                    
+                    <div id="login-form">
+                        <input type="email" id="auth-email" placeholder="Email Address" class="auth-input">
+                        <input type="password" id="auth-password" placeholder="Password" class="auth-input">
+                        
+                        <button onclick="app.login()" class="auth-btn-primary">Login</button>
+                        <button onclick="app.signup()" class="auth-btn-secondary">Create Account</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- VIEW: HOME -->
-            <section id="home-view" class="view active">
+            <section id="home-view" class="view">
                 <div class="hero-section">
                     <h1 class="hero-title" data-i18n="hero_title">Practice. Improve.<br><span class="text-primary">Recite with Confidence.</span></h1>
                     <p class="hero-subtitle" data-i18n="hero_sub">Your personal AI-powered Quran recitation assistant.</p>
@@ -82,17 +92,17 @@
                 <div class="stats-grid">
                     <div class="stat-card glass-card">
                         <div class="stat-icon text-accent">🔥</div>
-                        <div class="stat-value">12</div>
+                        <div class="stat-value">0</div>
                         <div class="stat-label" data-i18n="daily_streak">Daily Streak</div>
                     </div>
                     <div class="stat-card glass-card">
                         <div class="stat-icon text-primary">🎯</div>
-                        <div class="stat-value">94%</div>
+                        <div class="stat-value">0%</div>
                         <div class="stat-label" data-i18n="avg_accuracy">Avg Accuracy</div>
                     </div>
                     <div class="stat-card glass-card">
                         <div class="stat-icon">🎙️</div>
-                        <div class="stat-value">48</div>
+                        <div class="stat-value">0</div>
                         <div class="stat-label" data-i18n="sessions">Sessions</div>
                     </div>
                 </div>
@@ -114,12 +124,8 @@
                     </div>
                     <div class="recent-card glass-card" onclick="app.navigateTo('surah-view')">
                         <div class="recent-info">
-                            <span class="surah-number">112</span>
-                            <div>
-                                <h3>Al-Ikhlas</h3>
-                            </div>
+                            <p class="text-secondary p-2">No practice history yet.</p>
                         </div>
-                        <div class="recent-score text-primary">96%</div>
                     </div>
                 </div>
 
@@ -145,7 +151,7 @@
                 </div>
                 <div class="mic-container">
                     <div class="mic-waves" id="mic-waves"><div class="wave"></div><div class="wave"></div><div class="wave"></div></div>
-                    <button class="mic-button active" id="btn-mic" onclick="app.toggleRecording()">
+                    <button class="mic-button" id="btn-mic" onclick="app.toggleRecording()">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
                     </button>
                 </div>
@@ -211,12 +217,24 @@
                 <button class="btn btn-primary btn-block mt-4" onclick="app.navigateTo('home-view')" data-i18n="done">Done</button>
             </section>
 
-            <!-- VIEW: PROGRESS -->
+            <!-- VIEW: PROGRESS (Updated with Date Filter) -->
             <section id="progress-view" class="view">
                 <div class="section-header"><h2 data-i18n="progress">Your Progress</h2></div>
+                
+                <!-- Whoop-style Date Filter -->
+                <div class="date-navigator glass-card mt-2 mb-4" style="display: flex; justify-content: space-between; align-items: center; padding: 10px;">
+                    <button class="btn btn-outline" style="padding: 5px 15px;" onclick="app.changeDate(-1)">&#8592;</button>
+                    <h3 id="current-view-date" style="margin: 0; font-size: 1rem;">Today</h3>
+                    <button class="btn btn-outline" style="padding: 5px 15px;" onclick="app.changeDate(1)">&#8594;</button>
+                </div>
+
                 <div class="chart-card glass-card">
                     <div class="bar-chart" id="weekly-chart"></div>
                     <div class="chart-labels"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+                </div>
+
+                <div id="progress-details" class="history-list mt-4">
+                    <!-- Dynamic data for the selected date will go here -->
                 </div>
             </section>
 
@@ -230,13 +248,17 @@
             <section id="settings-view" class="view">
                 <div class="section-header"><h2 data-i18n="settings">Settings</h2></div>
                 <div class="settings-group glass-card mt-4">
-<!-- Replace your current setting-item for Dark Mode with this: -->
-<div class="setting-item">
-    <div>
-        <h4 data-i18n="dark_mode">Dark Mode</h4>
-    </div>
-    <div class="toggle active" onclick="app.toggleTheme()"></div>
-</div>
+                    <div class="setting-item">
+                        <div>
+                            <h4 data-i18n="dark_mode">Dark Mode</h4>
+                        </div>
+                        <div class="toggle active" onclick="app.toggleTheme()"></div>
+                    </div>
+                    <div class="setting-item mt-2">
+                        <div>
+                            <button class="btn-outline" style="padding: 8px 16px; border-radius: 8px;" onclick="app.logout()">Logout</button>
+                        </div>
+                    </div>
                 </div>
             </section>
         </main>
@@ -261,7 +283,7 @@
             </a>
         </nav>
     </div>
-    <!-- Firebase SDKs (Compat version for easier integration with your current JS) -->
+    
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>

@@ -1,6 +1,6 @@
 /**
  * Quran AI Coach - MVP JavaScript
- * Updated with Firebase Authentication & Firestore Cloud Sync
+ * Updated with Firebase Authentication, Date Filter, & Background Recording
  */
 
 const firebaseConfig = {
@@ -32,6 +32,9 @@ const app = (() => {
     let mediaRecorder = null;
     let audioChunks = [];
 
+    // Date Filter State for Progress View
+    let currentViewDate = new Date();
+
     // Local app state
     let appData = {
         history: [],
@@ -44,11 +47,9 @@ const app = (() => {
     const loadUserData = async (user) => {
         currentUser = user;
         try {
-            // Load theme from local storage
             const localSettings = JSON.parse(localStorage.getItem(`quranTheme_${user.uid}`));
             if (localSettings) appData.theme = localSettings.theme;
 
-            // Load history from Firestore database
             const snapshot = await db.collection('users').doc(user.uid).collection('history').orderBy('date', 'desc').get();
             appData.history = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
@@ -61,11 +62,7 @@ const app = (() => {
 
     const saveData = async (newEntry = null) => {
         if (!currentUser) return;
-        
-        // Save theme locally
         localStorage.setItem(`quranTheme_${currentUser.uid}`, JSON.stringify({ theme: appData.theme }));
-
-        // If a new history entry is provided, save it to Firestore
         if (newEntry) {
             try {
                 await db.collection('users').doc(currentUser.uid).collection('history').doc(newEntry.id.toString()).set(newEntry);
@@ -85,7 +82,8 @@ const app = (() => {
             analyzing: "Analyzing your recitation...", step_1: "Processing audio...", step_2: "Converting speech to text...", step_3: "Evaluating Tajweed rules...", step_4: "Generating feedback...",
             analysis_complete: "Analysis Complete", overall_accuracy: "Overall Accuracy", pronunciation: "Pronunciation", memorization: "Memorization", tajweed: "Tajweed",
             detailed_feedback: "Detailed Feedback", done: "Done", progress: "Your Progress", history: "Practice History", settings: "Settings", dark_mode: "Dark Mode",
-            nav_home: "Home", nav_progress: "Progress", nav_history: "History", nav_settings: "Settings", verses: "Verses", verse: "Verse", mic_error: "Microphone access denied."
+            nav_home: "Home", nav_progress: "Progress", nav_history: "History", nav_settings: "Settings", verses: "Verses", verse: "Verse", mic_error: "Microphone access denied.",
+            recording_in_progress: "🔴 Recording in progress..."
         },
         ml: {
             app_title: "ഖുർആൻ AI കോച്ച്", hero_title: "പരിശീലിക്കുക. മെച്ചപ്പെടുത്തുക.<br><span class='text-primary'>ആത്മവിശ്വാസത്തോടെ പാരായണം ചെയ്യുക.</span>", hero_sub: "നിങ്ങളുടെ സ്വന്തം AI ഖുർആൻ പാരായണ സഹായി.",
@@ -95,7 +93,8 @@ const app = (() => {
             analyzing: "നിങ്ങളുടെ പാരായണം പരിശോധിക്കുന്നു...", step_1: "ശബ്ദം പരിശോധിക്കുന്നു...", step_2: "വാക്കുകൾ വേർതിരിക്കുന്നു...", step_3: "തജ്‌വീദ് നിയമങ്ങൾ പരിശോധിക്കുന്നു...", step_4: "ഫീഡ്‌ബാക്ക് തയ്യാറാക്കുന്നു...",
             analysis_complete: "പരിശോധന പൂർത്തിയായി", overall_accuracy: "മൊത്തത്തിലുള്ള കൃത്യത", pronunciation: "ഉച്ചാരണം", memorization: "മനഃപാഠം", tajweed: "തജ്‌വീദ്",
             detailed_feedback: "വിശദമായ ഫീഡ്‌ബാക്ക്", done: "പൂർത്തിയായി", progress: "നിങ്ങളുടെ പുരോഗതി", history: "പരിശീലന ചരിത്രം", settings: "ക്രമീകരണങ്ങൾ", dark_mode: "ഡാർക്ക് മോഡ്",
-            nav_home: "ഹോം", nav_progress: "പുരോഗതി", nav_history: "ചരിത്രം", nav_settings: "ക്രമീകരണങ്ങൾ", verses: "വരികൾ", verse: "വരി", mic_error: "മൈക്രോഫോൺ ഉപയോഗിക്കാൻ അനുമതിയില്ല."
+            nav_home: "ഹോം", nav_progress: "പുരോഗതി", nav_history: "ചരിത്രം", nav_settings: "ക്രമീകരണങ്ങൾ", verses: "വരികൾ", verse: "വരി", mic_error: "മൈക്രോഫോൺ ഉപയോഗിക്കാൻ അനുമതിയില്ല.",
+            recording_in_progress: "🔴 റെക്കോർഡിംഗ് നടക്കുന്നു..."
         }
     };
 
@@ -116,7 +115,8 @@ const app = (() => {
         recordSurahName: document.getElementById('record-surah-name'), micWaves: document.getElementById('mic-waves'), recordTimer: document.getElementById('record-timer'),
         recordStatus: document.getElementById('record-status'), btnMic: document.getElementById('btn-mic'), resultSurahName: document.getElementById('result-surah-name'),
         feedbackList: document.getElementById('feedback-list'), weeklyChart: document.getElementById('weekly-chart'), langBtn: document.getElementById('lang-btn'),
-        historyList: document.getElementById('history-list')
+        historyList: document.getElementById('history-list'), progressDetails: document.getElementById('progress-details'), currentViewDate: document.getElementById('current-view-date'),
+        recordingPopup: document.getElementById('recording-popup'), initialLoader: document.getElementById('initial-loader')
     };
 
     const init = () => {
@@ -132,10 +132,11 @@ const app = (() => {
                 currentUser = null;
                 navigateTo('auth-view');
             }
+            // Hide loader after auth state check finishes
+            if(els.initialLoader) els.initialLoader.classList.add('hidden');
         });
     };
 
-    // --- Firebase Auth Handlers ---
     const signup = async () => {
         const email = document.getElementById('auth-email').value;
         const password = document.getElementById('auth-password').value;
@@ -167,6 +168,7 @@ const app = (() => {
         applyLanguage();
         renderSurahList(surahs);
         updateDashboard();
+        updateDateDisplay();
     };
 
     const applyLanguage = () => {
@@ -198,12 +200,8 @@ const app = (() => {
 
     const navigateTo = (viewId, event = null) => {
         if (event) event.preventDefault();
-
-        if (viewId === 'auth-view') {
-            document.body.classList.add('on-auth');
-        } else {
-            document.body.classList.remove('on-auth');
-        }
+        if (viewId === 'auth-view') document.body.classList.add('on-auth');
+        else document.body.classList.remove('on-auth');
 
         document.querySelectorAll('.nav-item').forEach(el => {
             el.classList.remove('active');
@@ -218,7 +216,8 @@ const app = (() => {
             if (['home-view', 'progress-view', 'history-view', 'settings-view'].includes(viewId)) {
                 viewHistory = [viewId]; 
                 if(els.backBtnContainer) els.backBtnContainer.style.display = 'none';
-                if(viewId === 'home-view' || viewId === 'progress-view' || viewId === 'history-view') updateDashboard();
+                if(viewId === 'home-view' || viewId === 'history-view') updateDashboard();
+                if(viewId === 'progress-view') { updateDashboard(); updateDateDisplay(); }
             } else {
                 viewHistory.push(viewId);
                 if(els.backBtnContainer) els.backBtnContainer.style.display = 'block';
@@ -287,6 +286,8 @@ const app = (() => {
         els.btnMic.innerHTML = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`;
         els.recordStatus.textContent = i18n[currentLang].tap_to_start;
         els.recordStatus.classList.add('stopped');
+        
+        if (els.recordingPopup) els.recordingPopup.classList.add('hidden');
     };
 
     const toggleRecording = async () => {
@@ -299,6 +300,8 @@ const app = (() => {
             els.btnMic.innerHTML = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`;
             els.recordStatus.textContent = i18n[currentLang].paused;
             els.recordStatus.classList.add('stopped');
+            
+            if (els.recordingPopup) els.recordingPopup.classList.add('hidden');
         } else {
             isRecording = true;
             if (!mediaRecorder) {
@@ -321,6 +324,8 @@ const app = (() => {
             els.recordStatus.textContent = i18n[currentLang].recording;
             els.recordStatus.classList.remove('stopped');
             recordingTimer = setInterval(() => { seconds++; els.recordTimer.textContent = formatTime(seconds); }, 1000);
+            
+            if (els.recordingPopup) els.recordingPopup.classList.remove('hidden');
         }
     };
 
@@ -344,15 +349,16 @@ const app = (() => {
     const stopLoadingAnimation = () => {
         clearInterval(loadingInterval);
         const steps = document.querySelectorAll('.analysis-steps .step');
-        steps.forEach(s => {
-            s.classList.remove('active');
-            s.classList.add('done');
-        });
+        steps.forEach(s => { s.classList.remove('active'); s.classList.add('done'); });
     };
 
     const finishRecording = () => {
-        if (seconds === 0) return;
+        if (seconds === 0) {
+            cancelRecording();
+            return;
+        }
         clearInterval(recordingTimer);
+        if (els.recordingPopup) els.recordingPopup.classList.add('hidden');
 
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
             mediaRecorder.onstop = async () => {
@@ -434,7 +440,7 @@ const app = (() => {
                 fullData: realData
             };
             appData.history.unshift(newEntry);
-            saveData(newEntry); // Save entry directly to Firestore cloud
+            saveData(newEntry); 
         }
 
         const percentageEl = document.querySelector('.circular-chart .percentage');
@@ -559,12 +565,43 @@ const app = (() => {
         if (els.weeklyChart) els.weeklyChart.innerHTML = chartHTML;
     };
 
+    // --- Date Navigator for Progress Tab ---
+    const updateDateDisplay = () => {
+        if (!els.currentViewDate || !els.progressDetails) return;
+
+        const isToday = new Date().toDateString() === currentViewDate.toDateString();
+        els.currentViewDate.textContent = isToday ? (currentLang === 'en' ? 'Today' : 'ഇന്ന്') : currentViewDate.toLocaleDateString(currentLang === 'en' ? 'en-US' : 'ml-IN', { month: 'short', day: 'numeric', year: 'numeric' });
+
+        const dateStr = currentViewDate.toDateString();
+        const dayRecords = appData.history.filter(h => new Date(h.date).toDateString() === dateStr);
+
+        if (dayRecords.length === 0) {
+            els.progressDetails.innerHTML = `<p class="text-center text-secondary mt-2">${currentLang === 'en' ? 'No practice data for this date.' : 'ഈ തീയതിയിൽ പരിശീലന വിവരങ്ങളില്ല.'}</p>`;
+            return;
+        }
+
+        els.progressDetails.innerHTML = dayRecords.map(h => {
+            const name = currentLang === 'en' ? h.surahNameEn : h.surahNameMl;
+            const timeStr = new Date(h.date).toLocaleTimeString(currentLang === 'en' ? 'en-US' : 'ml-IN', { hour: '2-digit', minute: '2-digit' });
+            return `
+            <div class="glass-card history-item" style="margin-bottom: 0.75rem;" onclick="app.viewPastSession('${h.id}')">
+                <div><h4>${name}</h4><p class="history-item-date">${timeStr}</p></div>
+                <div class="text-primary" style="font-size: 1.25rem; font-weight: 700;">${h.score}%</div>
+            </div>`;
+        }).join('');
+    };
+
+    const changeDate = (days) => {
+        currentViewDate.setDate(currentViewDate.getDate() + days);
+        updateDateDisplay();
+    };
+
     document.addEventListener('DOMContentLoaded', init);
 
     return {
         navigateTo, goBack, filterSurahs, selectSurah, 
         toggleRecording, cancelRecording, finishRecording, 
         toggleLanguage, toggleTheme, viewPastSession,
-        login, signup, logout
+        login, signup, logout, changeDate
     };
 })();
