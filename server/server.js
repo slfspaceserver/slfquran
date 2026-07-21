@@ -4,68 +4,65 @@ const multer = require('multer');
 const fs = require('fs');
 require('dotenv').config();
 
-// Import Google AI SDK
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { GoogleAIFileManager } = require('@google/generative-ai/server');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Configure Multer for audio uploads
 const upload = multer({ dest: 'uploads/' });
-
 if (!fs.existsSync('uploads')) {
     fs.mkdirSync('uploads');
 }
 
-// Initialize Gemini SDK using the key from your environment variables
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
-    console.error("⚠️ GEMINI_API_KEY is missing from your environment variables!");
+    console.error("❌ GEMINI_API_KEY is missing from environment variables!");
     process.exit(1);
 }
 
 const genAI = new GoogleGenerativeAI(apiKey);
 const fileManager = new GoogleAIFileManager(apiKey);
 
-/**
- * API ROUTE: Receive audio and return REAL AI analysis
- */
-app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
-    try {
-        const audioFile = req.file;
-        const surahId = req.body.surahId;
-        const language = req.body.language;
+// Fallback Model Hierarchy to bypass Free Tier Rate Limits
+const FALLBACK_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-1.5-flash"
+];
 
-        if (!audioFile) {
+app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
+    let audioFilePath = req.file ? req.file.path : null;
+    let uploadedFileRef = null;
+
+    try {
+        if (!audioFilePath) {
             return res.status(400).json({ error: "No audio file received." });
         }
 
-        console.log(`\n🎙️ Processing Surah ID: ${surahId} in ${language}`);
+        const surahId = req.body.surahId || 1;
+        const language = req.body.language || 'en';
 
-        // 1. Upload the audio to Gemini using the File API
-        console.log("1️⃣ Uploading audio to Gemini...");
-        const uploadResponse = await fileManager.uploadFile(audioFile.path, {
+        console.log(`\n🎙️ Analyzing Surah ID: ${surahId} | Feedback Mode: ${language}`);
+
+        // Upload audio to Gemini File API
+        uploadedFileRef = await fileManager.uploadFile(audioFilePath, {
             mimeType: "audio/webm",
             displayName: `Recitation_Surah_${surahId}`,
         });
-        
-        // 2. Prepare the AI Model
-        // We use gemini-2.5-flash because it is lightning fast for multimodal tasks
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        // 3. Craft the strict System Prompt with Kerala Slang Malayalam instruction
         const promptText = `
-            You are an expert, compassionate Quran Tajweed coach. 
+            You are an expert, compassionate Quran Tajweed coach.
             Listen to the user's recitation of Surah ID ${surahId}.
             Evaluate their recitation based on pronunciation, memorization, and Tajweed rules.
 
-            The user prefers Malayalam. You must analyze the audio and provide your feedback strictly in easy-to-understand Malayalam text. Use a warm, conversational Kerala slang to make the user feel comfortable.
-            
+            ${language === 'ml' 
+                ? 'PROVIDE ALL FEEDBACK (msgMl, actionMl) IN EASY-TO-UNDERSTAND MALAYALAM WITH A WARM, CONVERSATIONAL KERALA SLANG.' 
+                : 'Provide feedback clearly in English.'}
+
             Respond ONLY with a valid JSON object matching this exact structure:
             {
                 "overallScore": number (0-100),
@@ -77,58 +74,65 @@ app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
                         "type": "perfect" | "warning" | "error", 
                         "verse": "Verse number", 
                         "msgEn": "English feedback", 
-                        "msgMl": "Malayalam feedback (Use conversational Kerala slang)", 
-                        "ar": "The arabic text of the specific mistake (leave empty string if not needed)",
-                        "actionEn": "Actionable advice on how to fix this mistake in English",
-                        "actionMl": "Actionable advice on how to fix this mistake in Malayalam (Use conversational Kerala slang)"
+                        "msgMl": "Malayalam feedback with friendly Kerala slang", 
+                        "ar": "The arabic text of mistake (or empty string)",
+                        "actionEn": "Actionable advice in English",
+                        "actionMl": "Actionable advice in Malayalam (Kerala slang)"
                     }
                 ]
             }
         `;
 
-        // 4. Request the analysis from Gemini
-        console.log("2️⃣ Analyzing recitation (this takes a few seconds)...");
-        const result = await model.generateContent({
-            contents: [
-                { role: "user", parts: [
-                    { fileData: { mimeType: uploadResponse.file.mimeType, fileUri: uploadResponse.file.uri } },
-                    { text: promptText }
-                ]}
-            ],
-            // Force the AI to return strict JSON data so our frontend doesn't break
-            generationConfig: {
-                responseMimeType: "application/json",
+        // Execute Model Fallback Loop
+        let parsedData = null;
+        let lastError = null;
+
+        for (const modelName of FALLBACK_MODELS) {
+            try {
+                console.log(`🤖 Requesting analysis using model: ${modelName}...`);
+                const model = genAI.getGenerativeModel({ model: modelName });
+                
+                const result = await model.generateContent({
+                    contents: [
+                        { role: "user", parts: [
+                            { fileData: { mimeType: uploadedFileRef.file.mimeType, fileUri: uploadedFileRef.file.uri } },
+                            { text: promptText }
+                        ]}
+                    ],
+                    generationConfig: { responseMimeType: "application/json" }
+                });
+
+                const rawText = result.response.text();
+                parsedData = JSON.parse(rawText);
+                console.log(`✅ Success using model: ${modelName}`);
+                break; // Exit loop on success
+            } catch (err) {
+                console.warn(`⚠️ Model ${modelName} failed/rate limited. Switching to next fallback...`);
+                lastError = err;
             }
-        });
+        }
 
-        const rawAiResponse = result.response.text();
-        const parsedData = JSON.parse(rawAiResponse);
-        
-        console.log("3️⃣ Analysis complete! Sending back to frontend.");
+        if (!parsedData) {
+            throw lastError || new Error("All fallback models failed.");
+        }
 
-        // 5. Clean up local and remote files to save space and protect privacy
-        fs.unlinkSync(audioFile.path); 
-        await fileManager.deleteFile(uploadResponse.file.name); 
+        // Cleanup temporary files
+        if (fs.existsSync(audioFilePath)) fs.unlinkSync(audioFilePath);
+        if (uploadedFileRef) await fileManager.deleteFile(uploadedFileRef.file.name);
 
-        // 6. Send the real AI response back to the frontend
         res.json({
             status: "success",
-            message: "Audio analyzed successfully by Gemini.",
+            message: "Recitation analyzed successfully.",
             data: parsedData
         });
 
     } catch (error) {
-        console.error("❌ AI Error:", error);
-        
-        // Clean up local file if something broke
-        if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
-
+        console.error("❌ Final AI Error:", error);
+        if (audioFilePath && fs.existsSync(audioFilePath)) fs.unlinkSync(audioFilePath);
         res.status(500).json({ error: "Failed to process audio with AI." });
     }
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Quran AI Backend is running on http://localhost:${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
 });
