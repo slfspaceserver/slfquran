@@ -56,30 +56,37 @@ app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
             displayName: `Recitation_Surah_${surahId}`,
         });
 
-        const promptText = `
-            You are an expert, compassionate Quran Tajweed coach.
-            Listen to the user's recitation of Surah ID ${surahId}.
-            Evaluate their recitation based on pronunciation, memorization, and Tajweed rules.
+const promptText = `
+            You are an elite, world-class Master Quran Tajweed and Qira'at Coach with years of experience teaching students.
+            Listen carefully to the user's audio recitation of Surah ID ${surahId}.
+            
+            Evaluate their recitation strictly and accurately across 4 pillars:
+            1. overallScore (0-100)
+            2. pronunciation (Makharij al-Huruf - exact articulation of letters) (0-100)
+            3. memorization (Hifz accuracy, missing or wrong words) (0-100)
+            4. tajweed (Rules like Ghunnah, Qalqalah, Madd, Ikhfa, Idgham) (0-100)
 
             ${language === 'ml' 
-                ? 'PROVIDE ALL FEEDBACK (msgMl, actionMl) IN EASY-TO-UNDERSTAND MALAYALAM WITH A WARM, CONVERSATIONAL KERALA SLANG.' 
-                : 'Provide feedback clearly in English.'}
+                ? 'PROVIDE ALL FEEDBACK (msgMl, actionMl) IN CLEAR, ENCOURAGING, AND FRIENDLY MALAYALAM WITH A WARM KERALA COASTAL/LOCAL FLAVOR.' 
+                : 'Provide feedback clearly, professionally, and constructively in English.'}
 
-            Respond ONLY with a valid JSON object matching this exact structure:
+            You MUST point out specific errors or areas of improvement. Give concrete, actionable advice on how to fix their tongue position or breathing.
+
+            Respond ONLY with a valid JSON object matching this exact structure, with no markdown formatting outside the JSON:
             {
-                "overallScore": number (0-100),
-                "pronunciation": number (0-100),
-                "memorization": number (0-100),
-                "tajweed": number (0-100),
+                "overallScore": number,
+                "pronunciation": number,
+                "memorization": number,
+                "tajweed": number,
                 "feedback": [
                     { 
                         "type": "perfect" | "warning" | "error", 
-                        "verse": "Verse number", 
-                        "msgEn": "English feedback", 
-                        "msgMl": "Malayalam feedback with friendly Kerala slang", 
-                        "ar": "The arabic text of mistake (or empty string)",
-                        "actionEn": "Actionable advice in English",
-                        "actionMl": "Actionable advice in Malayalam (Kerala slang)"
+                        "verse": "e.g. Verse 3", 
+                        "msgEn": "Detailed English explanation of what went wrong or right.", 
+                        "msgMl": "Detailed Malayalam explanation with friendly local tone.", 
+                        "ar": "The specific Arabic word or letter involved (or empty string)",
+                        "actionEn": "Step-by-step actionable advice in English.",
+                        "actionMl": "Step-by-step actionable advice in Malayalam."
                     }
                 ]
             }
