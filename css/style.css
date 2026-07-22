@@ -57,20 +57,31 @@ body.light-mode .sticky-record-bar { background: rgba(248, 250, 252, 0.95); }
 body.light-mode .auth-btn-google { background: white; border-color: #ccc; }
 body.light-mode .auth-btn-google:hover { background: #f9f9f9; }
 
-/* Authentication Views - FIXED FOR MOBILE SCROLLING */
+/* Authentication Views - 100% FIXED FOR MOBILE SCROLLING */
 body.on-auth .view:not(#auth-view) { display: none !important; }
+
 body.on-auth #auth-view { 
-    display: flex !important; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+    display: block !important; /* Changed from flex to block to prevent clipping */
+    position: fixed; 
+    top: 0; left: 0; width: 100%; height: 100%; 
     background: var(--bg); z-index: 9999; 
-    overflow-y: auto; padding: 2rem 1rem; align-items: flex-start; 
+    overflow-y: auto; /* Restores native mobile scrolling */
+    -webkit-overflow-scrolling: touch; 
+    padding: 2rem 1rem 5rem 1rem; /* Safe padding for top and bottom */
+    margin-top: 50px;
 }
-#auth-view { display: none; flex-direction: column; justify-content: flex-start; min-height: 100vh; }
-#auth-view.active { display: flex !important; }
+
+#auth-view { display: none; }
+#auth-view.active { display: block !important; }
 body.on-auth .bottom-nav, body.on-auth .app-header { display: none !important; }
 
 .auth-card { 
-    width: 100%; max-width: 380px; padding: 2.5rem 1.5rem; text-align: center; border-radius: 20px; 
-    margin: auto; /* Centers when large, scrolls when small */
+    width: 100%; 
+    max-width: 380px; 
+    padding: 2.5rem 1.5rem; 
+    text-align: center; 
+    border-radius: 20px; 
+    margin: 5vh auto 2rem auto; /* Centers horizontally, slight margin from top */
 }
 
 .auth-input { width: 100%; padding: 0.85rem 1rem; margin-bottom: 1rem; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.15); background: rgba(255, 255, 255, 0.05); color: var(--text); font-size: 0.95rem; outline: none; box-sizing: border-box; }
