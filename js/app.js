@@ -1,6 +1,6 @@
 /**
  * Quran AI Coach - MVP JavaScript
- * Updated with Firebase Authentication, Date Filter, & Background Recording
+ * Updated with Firebase Authentication, Custom Date Filter, & Profile Saving
  */
 
 const firebaseConfig = {
@@ -11,7 +11,7 @@ const firebaseConfig = {
     messagingSenderId: "1012533933205",
     appId: "1:1012533933205:web:307b788a6d54bdd912979c",
     measurementId: "G-EBFXJ2381S"
-  };
+};
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
@@ -32,31 +32,45 @@ const app = (() => {
     let mediaRecorder = null;
     let audioChunks = [];
 
-    // Date Filter State for Progress View
+    // Date Filter State
     let currentViewDate = new Date();
 
     // Local app state
     let appData = {
         history: [],
-        theme: 'dark'
+        theme: 'dark',
+        profile: { name: '' }
     };
 
     let currentUser = null;
 
-    // Fetch user-specific data from Firestore when logged in
+    // Fetch user-specific data from Firestore
     const loadUserData = async (user) => {
         currentUser = user;
         try {
             const localSettings = JSON.parse(localStorage.getItem(`quranTheme_${user.uid}`));
             if (localSettings) appData.theme = localSettings.theme;
 
+            // Load Profile
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            if (userDoc.exists && userDoc.data().profile) {
+                appData.profile = userDoc.data().profile;
+                if(document.getElementById('profile-name')) {
+                    document.getElementById('profile-name').value = appData.profile.name || '';
+                }
+            }
+            if(document.getElementById('profile-email')) {
+                document.getElementById('profile-email').value = user.email || '';
+            }
+
+            // Load History
             const snapshot = await db.collection('users').doc(user.uid).collection('history').orderBy('date', 'desc').get();
             appData.history = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
             applyTheme();
             updateDashboard();
         } catch (error) {
-            console.error("Error loading user data from cloud:", error);
+            console.error("Error loading user data:", error);
         }
     };
 
@@ -67,12 +81,25 @@ const app = (() => {
             try {
                 await db.collection('users').doc(currentUser.uid).collection('history').doc(newEntry.id.toString()).set(newEntry);
             } catch (error) {
-                console.error("Error saving history to cloud:", error);
+                console.error("Error saving history:", error);
             }
         }
     };
 
-    // i18n Dictionary
+    const saveProfile = async () => {
+        if(!currentUser) return;
+        const name = document.getElementById('profile-name').value;
+        appData.profile = { name };
+        try {
+            await db.collection('users').doc(currentUser.uid).set({ profile: appData.profile }, { merge: true });
+            alert(currentLang === 'en' ? "Profile Saved Successfully!" : "പ്രൊഫൈൽ അപ്ഡേറ്റ് ചെയ്തു!");
+            goBack();
+        } catch(error) {
+            console.error("Error saving profile", error);
+            alert("Error saving profile.");
+        }
+    };
+
     const i18n = {
         en: {
             app_title: "Quran AI Coach", hero_title: "Practice. Improve.<br><span class='text-primary'>Recite with Confidence.</span>", hero_sub: "Your personal AI-powered Quran recitation assistant.",
@@ -83,7 +110,7 @@ const app = (() => {
             analysis_complete: "Analysis Complete", overall_accuracy: "Overall Accuracy", pronunciation: "Pronunciation", memorization: "Memorization", tajweed: "Tajweed",
             detailed_feedback: "Detailed Feedback", done: "Done", progress: "Your Progress", history: "Practice History", settings: "Settings", dark_mode: "Dark Mode",
             nav_home: "Home", nav_progress: "Progress", nav_history: "History", nav_settings: "Settings", verses: "Verses", verse: "Verse", mic_error: "Microphone access denied.",
-            recording_in_progress: "🔴 Recording in progress..."
+            recording_in_progress: "🔴 Recording in progress...", edit_profile: "Edit Profile"
         },
         ml: {
             app_title: "ഖുർആൻ AI കോച്ച്", hero_title: "പരിശീലിക്കുക. മെച്ചപ്പെടുത്തുക.<br><span class='text-primary'>ആത്മവിശ്വാസത്തോടെ പാരായണം ചെയ്യുക.</span>", hero_sub: "നിങ്ങളുടെ സ്വന്തം AI ഖുർആൻ പാരായണ സഹായി.",
@@ -94,7 +121,7 @@ const app = (() => {
             analysis_complete: "പരിശോധന പൂർത്തിയായി", overall_accuracy: "മൊത്തത്തിലുള്ള കൃത്യത", pronunciation: "ഉച്ചാരണം", memorization: "മനഃപാഠം", tajweed: "തജ്‌വീദ്",
             detailed_feedback: "വിശദമായ ഫീഡ്‌ബാക്ക്", done: "പൂർത്തിയായി", progress: "നിങ്ങളുടെ പുരോഗതി", history: "പരിശീലന ചരിത്രം", settings: "ക്രമീകരണങ്ങൾ", dark_mode: "ഡാർക്ക് മോഡ്",
             nav_home: "ഹോം", nav_progress: "പുരോഗതി", nav_history: "ചരിത്രം", nav_settings: "ക്രമീകരണങ്ങൾ", verses: "വരികൾ", verse: "വരി", mic_error: "മൈക്രോഫോൺ ഉപയോഗിക്കാൻ അനുമതിയില്ല.",
-            recording_in_progress: "🔴 റെക്കോർഡിംഗ് നടക്കുന്നു..."
+            recording_in_progress: "🔴 റെക്കോർഡിംഗ് നടക്കുന്നു...", edit_profile: "പ്രൊഫൈൽ മാറ്റുക"
         }
     };
 
@@ -116,14 +143,14 @@ const app = (() => {
         recordStatus: document.getElementById('record-status'), btnMic: document.getElementById('btn-mic'), resultSurahName: document.getElementById('result-surah-name'),
         feedbackList: document.getElementById('feedback-list'), weeklyChart: document.getElementById('weekly-chart'), langBtn: document.getElementById('lang-btn'),
         historyList: document.getElementById('history-list'), progressDetails: document.getElementById('progress-details'), currentViewDate: document.getElementById('current-view-date'),
-        recordingPopup: document.getElementById('recording-popup'), initialLoader: document.getElementById('initial-loader')
+        recordingPopup: document.getElementById('recording-popup'), initialLoader: document.getElementById('initial-loader'),
+        customDatePicker: document.getElementById('custom-date-picker'), scoreOverallText: document.getElementById('score-overall-text')
     };
 
     const init = () => {
         applyLanguage();
         renderSurahList(surahs);
         
-        // Listen for user sign-in state
         auth.onAuthStateChanged(user => {
             if (user) {
                 loadUserData(user);
@@ -132,7 +159,6 @@ const app = (() => {
                 currentUser = null;
                 navigateTo('auth-view');
             }
-            // Hide loader after auth state check finishes
             if(els.initialLoader) els.initialLoader.classList.add('hidden');
         });
     };
@@ -143,24 +169,17 @@ const app = (() => {
         try {
             await auth.createUserWithEmailAndPassword(email, password);
             alert("Account created successfully!");
-        } catch (error) {
-            alert(error.message);
-        }
+        } catch (error) { alert(error.message); }
     };
 
     const login = async () => {
         const email = document.getElementById('auth-email').value;
         const password = document.getElementById('auth-password').value;
-        try {
-            await auth.signInWithEmailAndPassword(email, password);
-        } catch (error) {
-            alert(error.message);
-        }
+        try { await auth.signInWithEmailAndPassword(email, password); } 
+        catch (error) { alert(error.message); }
     };
 
-    const logout = () => {
-        auth.signOut();
-    };
+    const logout = () => { auth.signOut(); };
 
     const toggleLanguage = () => {
         currentLang = currentLang === 'en' ? 'ml' : 'en';
@@ -272,14 +291,12 @@ const app = (() => {
 
     const resetRecording = () => {
         clearInterval(recordingTimer);
-        seconds = 0;
-        isRecording = false;
+        seconds = 0; isRecording = false;
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
             mediaRecorder.stop();
             mediaRecorder.stream.getTracks().forEach(track => track.stop());
         }
-        mediaRecorder = null;
-        audioChunks = [];
+        mediaRecorder = null; audioChunks = [];
         els.recordTimer.textContent = "00:00";
         els.micWaves.classList.remove('active');
         els.btnMic.classList.remove('active');
@@ -353,10 +370,7 @@ const app = (() => {
     };
 
     const finishRecording = () => {
-        if (seconds === 0) {
-            cancelRecording();
-            return;
-        }
+        if (seconds === 0) { cancelRecording(); return; }
         clearInterval(recordingTimer);
         if (els.recordingPopup) els.recordingPopup.classList.add('hidden');
 
@@ -443,8 +457,8 @@ const app = (() => {
             saveData(newEntry); 
         }
 
-        const percentageEl = document.querySelector('.circular-chart .percentage');
-        if(percentageEl) percentageEl.textContent = `${overall}%`;
+        // FORCE SCORE UPDATE IN THE DOM
+        if(els.scoreOverallText) els.scoreOverallText.textContent = `${overall}%`;
         
         const circle = document.querySelector('.circle-value');
         if(circle) {
@@ -565,12 +579,19 @@ const app = (() => {
         if (els.weeklyChart) els.weeklyChart.innerHTML = chartHTML;
     };
 
-    // --- Date Navigator for Progress Tab ---
+    // --- Date Navigator & Custom Filter ---
     const updateDateDisplay = () => {
         if (!els.currentViewDate || !els.progressDetails) return;
 
         const isToday = new Date().toDateString() === currentViewDate.toDateString();
         els.currentViewDate.textContent = isToday ? (currentLang === 'en' ? 'Today' : 'ഇന്ന്') : currentViewDate.toLocaleDateString(currentLang === 'en' ? 'en-US' : 'ml-IN', { month: 'short', day: 'numeric', year: 'numeric' });
+
+        // Update the invisible date picker value
+        if (els.customDatePicker) {
+            const tzOffset = currentViewDate.getTimezoneOffset() * 60000;
+            const localISOTime = (new Date(currentViewDate - tzOffset)).toISOString().split('T')[0];
+            els.customDatePicker.value = localISOTime;
+        }
 
         const dateStr = currentViewDate.toDateString();
         const dayRecords = appData.history.filter(h => new Date(h.date).toDateString() === dateStr);
@@ -591,8 +612,29 @@ const app = (() => {
         }).join('');
     };
 
+    // Prevent filtering before the very first practice session date
     const changeDate = (days) => {
+        if (days < 0 && appData.history.length > 0) {
+            const oldestRecord = appData.history[appData.history.length - 1];
+            const oldestDate = new Date(oldestRecord.date);
+            oldestDate.setHours(0,0,0,0);
+            
+            const testDate = new Date(currentViewDate);
+            testDate.setDate(testDate.getDate() + days);
+            testDate.setHours(0,0,0,0);
+            
+            if (testDate < oldestDate) {
+                alert(currentLang === 'en' ? "You have no records prior to this date." : "ഇതിന് മുൻപ് റെക്കോർഡുകൾ ഇല്ല.");
+                return;
+            }
+        }
         currentViewDate.setDate(currentViewDate.getDate() + days);
+        updateDateDisplay();
+    };
+
+    const selectCustomDate = (dateStr) => {
+        if(!dateStr) return;
+        currentViewDate = new Date(dateStr);
         updateDateDisplay();
     };
 
@@ -602,6 +644,6 @@ const app = (() => {
         navigateTo, goBack, filterSurahs, selectSurah, 
         toggleRecording, cancelRecording, finishRecording, 
         toggleLanguage, toggleTheme, viewPastSession,
-        login, signup, logout, changeDate
+        login, signup, logout, changeDate, selectCustomDate, saveProfile
     };
 })();
