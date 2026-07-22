@@ -1,6 +1,6 @@
 /**
  * Quran AI Coach - MVP JavaScript
- * Restored Architecture + Profile, Constraints, Search & API Integration
+ * Restored Architecture + Auth UI, Profile, Constraints, Search & API Integration
  */
 
 const firebaseConfig = {
@@ -18,6 +18,7 @@ firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
 const db = firebase.firestore();
+const googleProvider = new firebase.auth.GoogleAuthProvider();
 
 const app = (() => {
     let currentView = 'home-view';
@@ -137,6 +138,7 @@ const app = (() => {
         }
     };
 
+    // Dictionary omitted for brevity but remains intact...
     const i18n = {
         en: {
             app_title: "Quran AI Coach", hero_title: "Practice. Improve.<br><span class='text-primary'>Recite with Confidence.</span>", hero_sub: "Your personal AI-powered Quran recitation assistant.",
@@ -147,7 +149,7 @@ const app = (() => {
             analysis_complete: "Analysis Complete", overall_accuracy: "Overall Accuracy", pronunciation: "Pronunciation", memorization: "Memorization", tajweed: "Tajweed",
             detailed_feedback: "Detailed Feedback", done: "Done", progress: "Your Progress", history: "Practice History", settings: "Settings", dark_mode: "Dark Mode",
             nav_home: "Home", nav_progress: "Progress", nav_history: "History", nav_settings: "Settings", verses: "Verses", verse: "Verse", mic_error: "Microphone access denied.",
-            recording_in_progress: "🔴 Recording in progress...", edit_profile: "Edit Profile"
+            recording_in_progress: "🔴 Recording in progress..."
         },
         ml: {
             app_title: "ഖുർആൻ AI കോച്ച്", hero_title: "പരിശീലിക്കുക. മെച്ചപ്പെടുത്തുക.<br><span class='text-primary'>ആത്മവിശ്വാസത്തോടെ പാരായണം ചെയ്യുക.</span>", hero_sub: "നിങ്ങളുടെ സ്വന്തം AI ഖുർആൻ പാരായണ സഹായി.",
@@ -158,12 +160,54 @@ const app = (() => {
             analysis_complete: "പരിശോധന പൂർത്തിയായി", overall_accuracy: "മൊത്തത്തിലുള്ള കൃത്യത", pronunciation: "ഉച്ചാരണം", memorization: "മനഃപാഠം", tajweed: "തജ്‌വീദ്",
             detailed_feedback: "വിശദമായ ഫീഡ്‌ബാക്ക്", done: "പൂർത്തിയായി", progress: "നിങ്ങളുടെ പുരോഗതി", history: "പരിശീലന ചരിത്രം", settings: "ക്രമീകരണങ്ങൾ", dark_mode: "ഡാർക്ക് മോഡ്",
             nav_home: "ഹോം", nav_progress: "പുരോഗതി", nav_history: "ചരിത്രം", nav_settings: "ക്രമീകരണങ്ങൾ", verses: "വരികൾ", verse: "വരി", mic_error: "മൈക്രോഫോൺ ഉപയോഗിക്കാൻ അനുമതിയില്ല.",
-            recording_in_progress: "🔴 റെക്കോർഡിംഗ് നടക്കുന്നു...", edit_profile: "പ്രൊഫൈൽ മാറ്റുക"
+            recording_in_progress: "🔴 റെക്കോർഡിംഗ് നടക്കുന്നു..."
         }
     };
 
-    const signup = async () => { const email = document.getElementById('auth-email').value; const password = document.getElementById('auth-password').value; try { await auth.createUserWithEmailAndPassword(email, password); alert("Account created successfully!"); } catch (error) { alert(error.message); } };
-    const login = async () => { const email = document.getElementById('auth-email').value; const password = document.getElementById('auth-password').value; try { await auth.signInWithEmailAndPassword(email, password); } catch (error) { alert(error.message); } };
+    // --- AUTHENTICATION ---
+    const switchAuth = (mode) => {
+        if(mode === 'login') {
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('signup-form').classList.add('hidden');
+            document.getElementById('tab-login').classList.add('active');
+            document.getElementById('tab-signup').classList.remove('active');
+        } else {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('signup-form').classList.remove('hidden');
+            document.getElementById('tab-login').classList.remove('active');
+            document.getElementById('tab-signup').classList.add('active');
+        }
+    };
+
+    const signup = async () => { 
+        const n = document.getElementById('signup-name').value;
+        const e = document.getElementById('signup-email').value; 
+        const p = document.getElementById('signup-password').value; 
+        if(!n || !e || !p) { alert("Please fill all fields."); return; }
+        try { 
+            const cred = await auth.createUserWithEmailAndPassword(e, p); 
+            await db.collection('users').doc(cred.user.uid).set({ profile: { name: n } }, { merge: true });
+            appData.profile.name = n;
+        } catch(err) { alert(err.message); } 
+    };
+
+    const login = async () => { 
+        const e = document.getElementById('login-email').value; 
+        const p = document.getElementById('login-password').value; 
+        try { await auth.signInWithEmailAndPassword(e, p); } catch(err) { alert(err.message); } 
+    };
+
+    const googleLogin = async () => {
+        try {
+            const result = await auth.signInWithPopup(googleProvider);
+            const userDoc = await db.collection('users').doc(result.user.uid).get();
+            if (!userDoc.exists || !userDoc.data().profile || !userDoc.data().profile.name) {
+                await db.collection('users').doc(result.user.uid).set({ profile: { name: result.user.displayName } }, { merge: true });
+                appData.profile.name = result.user.displayName;
+            }
+        } catch(err) { alert(err.message); }
+    };
+
     const logout = () => { auth.signOut(); };
 
     const toggleLanguage = () => {
@@ -698,7 +742,7 @@ const app = (() => {
     return {
         navigateTo, goBack, filterSurahs, filterHistory, filterProgress, selectSurah, 
         toggleRecording, cancelRecording, finishRecording, saveProfile,
-        toggleLanguage, toggleTheme, viewPastSession,
+        toggleLanguage, toggleTheme, viewPastSession, switchAuth, googleLogin,
         login, signup, logout, changeDate, selectCustomDate
     };
 })();
