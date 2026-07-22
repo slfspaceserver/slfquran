@@ -122,6 +122,50 @@ body.on-auth .bottom-nav, body.on-auth .app-header { display: none !important; }
 .btn-block { width: 100%; }
 .btn-text { background: none; border: none; color: var(--primary); font-weight: 600; cursor: pointer; font-family: inherit; }
 
+/* ==========================================================================
+   AI Disclaimer Warning Card Styles (Centered Icon)
+   ========================================================================== */
+.disclaimer-card {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+    background: rgba(255, 90, 95, 0.1);
+    border: 1px solid rgba(255, 90, 95, 0.2);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    align-items: center; /* This centers the warning emoji vertically */
+}
+
+.disclaimer-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.disclaimer-card p {
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.5;
+}
+
+/* Light Mode Overrides for Disclaimer */
+body.light-mode .disclaimer-card {
+    background: rgba(255, 90, 95, 0.08);
+    border: 1px solid rgba(255, 90, 95, 0.15);
+}
+
+body.light-mode .disclaimer-card p {
+    color: var(--text);
+}
+/* Light Mode Overrides for Disclaimer */
+body.light-mode .disclaimer-card {
+    background: rgba(255, 90, 95, 0.08);
+    border: 1px solid rgba(255, 90, 95, 0.15);
+}
+
+body.light-mode .disclaimer-card p {
+    color: var(--text);
+}
+
 /* Views & Routing Animations */
 .view { display: none; padding: 1.5rem; animation: fadeSlideUp 0.4s ease forwards; opacity: 0; }
 .view.active { display: block; }
