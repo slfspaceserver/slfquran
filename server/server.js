@@ -2,7 +2,12 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const fs = require('fs');
+const path = require('path');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
 require('dotenv').config();
+
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { GoogleAIFileManager } = require('@google/generative-ai/server');
@@ -35,7 +40,24 @@ const FALLBACK_MODELS = [
     "gemini-2.5-flash-lite"
 ];
 
-// Helper to fetch official Surah text for ground-truth verification
+// Helper: Clean and normalize audio using FFmpeg for maximum AI phonetic clarity
+async function normalizeAudio(inputPath) {
+    const outputPath = path.join('uploads', `processed_${Date.now()}.wav`);
+    return new Promise((resolve, reject) => {
+        ffmpeg(inputPath)
+            .toFormat('wav')
+            .audioChannels(1) // Mono
+            .audioFrequency(16000) // 16kHz sample rate optimal for speech/phonetics
+            .audioFilter('highpass=f=200, lowpass=f=3000') // Strip background rumble and hiss
+            .on('end', () => resolve(outputPath))
+            .on('error', (err) => {
+                console.warn("⚠️ FFmpeg processing failed, falling back to raw audio:", err);
+                resolve(inputPath); // Fallback to raw file if ffmpeg fails
+            })
+            .save(outputPath);
+    });
+}
+
 async function fetchSurahReferenceText(surahId) {
     try {
         const response = await fetch(`https://api.alquran.cloud/v1/surah/${surahId}/quran-uthmani`);
@@ -50,63 +72,66 @@ async function fetchSurahReferenceText(surahId) {
 }
 
 app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
-    let audioFilePath = req.file ? req.file.path : null;
+    let rawAudioPath = req.file ? req.file.path : null;
+    let processedAudioPath = null;
     let uploadedFileRef = null;
 
     try {
-        if (!audioFilePath) {
+        if (!rawAudioPath) {
             return res.status(400).json({ error: "No audio file received." });
         }
 
         const surahId = req.body.surahId || 1;
         const language = req.body.language || 'en';
 
-        console.log(`\n🎙️ High-Accuracy Analysis for Surah ID: ${surahId} | Language: ${language}`);
+        console.log(`\n🎙️ Processing Crystal-Clear Audio for Surah ID: ${surahId}`);
 
-        // Fetch Ground Truth Text to eliminate hallucinations
+        // Step 1: Normalize and clean audio via FFmpeg
+        processedAudioPath = await normalizeAudio(rawAudioPath);
+
+        // Step 2: Fetch Ground Truth Reference Text
         const groundTruthText = await fetchSurahReferenceText(surahId);
 
-        uploadedFileRef = await fileManager.uploadFile(audioFilePath, {
-            mimeType: "audio/webm",
-            displayName: `Recitation_Surah_${surahId}`,
+        // Step 3: Upload cleaned audio to Gemini
+        uploadedFileRef = await fileManager.uploadFile(processedAudioPath, {
+            mimeType: "audio/wav",
+            displayName: `Clean_Recitation_Surah_${surahId}`,
         });
 
         const promptText = `
             You are an elite, world-class Master Quran Tajweed and Qira'at Coach.
-            Listen carefully to the user's audio recitation of Surah ID ${surahId}.
+            Listen carefully to the user's audio recitation.
 
             GROUND TRUTH REFERENCE TEXT (Official Uthmani Text):
             ${groundTruthText}
 
             INSTRUCTIONS FOR EVALUATION:
-            1. Compare the user's audio against the Ground Truth Reference Text above to check word-for-word memorization (Hifz) accuracy.
-            2. Evaluate strict Tajweed rules (Ghunnah, Qalqalah, Madd length, Makharij al-Huruf).
-            3. Score them accurately from 0-100 across overallScore, pronunciation, memorization, and tajweed.
+            1. Compare the audio against the Ground Truth Reference Text to check word-for-word memorization (Hifz) accuracy.
+            2. Evaluate precise Tajweed rules (such as Makharij al-Huruf, Ghunnah timing, Qalqalah bounces, and Madd elongation). Pay explicit attention to heavy letters (ص, ض, ط, ظ) vs light counterparts.
+            3. Score accurately from 0-100 across overallScore, pronunciation, memorization, and tajweed.
             
             ${language === 'ml' 
                 ? 'PROVIDE ALL FEEDBACK (msgMl, actionMl) IN CLEAR, ENCOURAGING, AND FRIENDLY MALAYALAM WITH A WARM KERALA LOCAL FLAVOR.' 
                 : 'Provide feedback clearly, professionally, and constructively in English.'}
 
-            EXAMPLE OF EXPECTED JSON FORMAT:
+            Respond ONLY with a valid JSON object matching this exact structure, with no markdown code blocks outside:
             {
-                "overallScore": 88,
-                "pronunciation": 85,
-                "memorization": 95,
-                "tajweed": 84,
+                "overallScore": number,
+                "pronunciation": number,
+                "memorization": number,
+                "tajweed": number,
                 "feedback": [
                     { 
-                        "type": "warning", 
-                        "verse": "Verse 2", 
-                        "msgEn": "The Madd length was too short.", 
-                        "msgMl": "മദ്ഡ് കുറച്ചുകൂടി നീട്ടി ഓതുക.", 
-                        "ar": "الرَّحْمَٰنِ",
-                        "actionEn": "Hold the vowel for 4 counts.", 
-                        "actionMl": "4 അലിഫ് നീളം നൽകുക." 
+                        "type": "perfect" | "warning" | "error", 
+                        "verse": "e.g. Verse 2", 
+                        "msgEn": "Detailed evaluation.", 
+                        "msgMl": "വിശദമായ വിവരണം മലയാളത്തിൽ.", 
+                        "ar": "The specific Arabic word",
+                        "actionEn": "Actionable advice.", 
+                        "actionMl": "എങ്ങനെ തിരുത്തണം എന്നതിനുള്ള നിർദ്ദേശം." 
                     }
                 ]
             }
-
-            Respond ONLY with a valid JSON object matching this exact structure, with no markdown code blocks outside.
         `;
 
         let parsedData = null;
@@ -114,7 +139,7 @@ app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
 
         for (const modelName of FALLBACK_MODELS) {
             try {
-                console.log(`🤖 Requesting high-accuracy analysis using model: ${modelName}...`);
+                console.log(`🤖 Requesting evaluation using model: ${modelName}...`);
                 const model = genAI.getGenerativeModel({ model: modelName });
                 
                 const result = await model.generateContent({
@@ -129,31 +154,32 @@ app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
 
                 const rawText = result.response.text();
                 parsedData = JSON.parse(rawText);
-                console.log(`✅ Success using model: ${modelName}`);
+                console.log(`✅ Success with model: ${modelName}`);
                 break;
             } catch (err) {
-                console.warn(`⚠️ Model ${modelName} failed/rate limited. Switching fallback...`);
+                console.warn(`⚠️ Model ${modelName} failed. Trying fallback...`);
                 lastError = err;
             }
         }
 
-        if (!parsedData) {
-            throw lastError || new Error("All fallback models failed.");
-        }
+        if (!parsedData) throw lastError || new Error("All fallback models failed.");
 
-        if (fs.existsSync(audioFilePath)) fs.unlinkSync(audioFilePath);
+        // Cleanup temporary files
+        if (rawAudioPath && fs.existsSync(rawAudioPath)) fs.unlinkSync(rawAudioPath);
+        if (processedAudioPath && fs.existsSync(processedAudioPath) && processedAudioPath !== rawAudioPath) fs.unlinkSync(processedAudioPath);
         if (uploadedFileRef) await fileManager.deleteFile(uploadedFileRef.file.name);
 
         res.json({
             status: "success",
-            message: "Recitation analyzed with high accuracy.",
+            message: "High-accuracy processed recitation analyzed.",
             data: parsedData
         });
 
     } catch (error) {
-        console.error("❌ Final AI Error:", error);
-        if (audioFilePath && fs.existsSync(audioFilePath)) fs.unlinkSync(audioFilePath);
-        res.status(500).json({ error: "Failed to process audio with AI." });
+        console.error("❌ Error during processing:", error);
+        if (rawAudioPath && fs.existsSync(rawAudioPath)) fs.unlinkSync(rawAudioPath);
+        if (processedAudioPath && fs.existsSync(processedAudioPath) && processedAudioPath !== rawAudioPath) fs.unlinkSync(processedAudioPath);
+        res.status(500).json({ error: "Failed to process audio." });
     }
 });
 
