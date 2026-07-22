@@ -27,7 +27,6 @@ if (!apiKey) {
 const genAI = new GoogleGenerativeAI(apiKey);
 const fileManager = new GoogleAIFileManager(apiKey);
 
-// Fallback Model Hierarchy using valid next-gen models to bypass Rate Limits
 const FALLBACK_MODELS = [
     "gemini-2.5-flash",
     "gemini-3-flash",
@@ -35,6 +34,20 @@ const FALLBACK_MODELS = [
     "gemini-3.1-flash-lite",
     "gemini-2.5-flash-lite"
 ];
+
+// Helper to fetch official Surah text for ground-truth verification
+async function fetchSurahReferenceText(surahId) {
+    try {
+        const response = await fetch(`https://api.alquran.cloud/v1/surah/${surahId}/quran-uthmani`);
+        const data = await response.json();
+        if (data && data.data && data.data.ayahs) {
+            return data.data.ayahs.map(a => `[Verse ${a.numberInSurah}]: ${a.text}`).join('\n');
+        }
+    } catch (err) {
+        console.warn("⚠️ Could not fetch ground truth reference text:", err);
+    }
+    return "Reference text unavailable.";
+}
 
 app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
     let audioFilePath = req.file ? req.file.path : null;
@@ -48,57 +61,60 @@ app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
         const surahId = req.body.surahId || 1;
         const language = req.body.language || 'en';
 
-        console.log(`\n🎙️ Analyzing Surah ID: ${surahId} | Feedback Mode: ${language}`);
+        console.log(`\n🎙️ High-Accuracy Analysis for Surah ID: ${surahId} | Language: ${language}`);
 
-        // Upload audio to Gemini File API
+        // Fetch Ground Truth Text to eliminate hallucinations
+        const groundTruthText = await fetchSurahReferenceText(surahId);
+
         uploadedFileRef = await fileManager.uploadFile(audioFilePath, {
             mimeType: "audio/webm",
             displayName: `Recitation_Surah_${surahId}`,
         });
 
-const promptText = `
-            You are an elite, world-class Master Quran Tajweed and Qira'at Coach with years of experience teaching students.
+        const promptText = `
+            You are an elite, world-class Master Quran Tajweed and Qira'at Coach.
             Listen carefully to the user's audio recitation of Surah ID ${surahId}.
-            
-            Evaluate their recitation strictly and accurately across 4 pillars:
-            1. overallScore (0-100)
-            2. pronunciation (Makharij al-Huruf - exact articulation of letters) (0-100)
-            3. memorization (Hifz accuracy, missing or wrong words) (0-100)
-            4. tajweed (Rules like Ghunnah, Qalqalah, Madd, Ikhfa, Idgham) (0-100)
 
+            GROUND TRUTH REFERENCE TEXT (Official Uthmani Text):
+            ${groundTruthText}
+
+            INSTRUCTIONS FOR EVALUATION:
+            1. Compare the user's audio against the Ground Truth Reference Text above to check word-for-word memorization (Hifz) accuracy.
+            2. Evaluate strict Tajweed rules (Ghunnah, Qalqalah, Madd length, Makharij al-Huruf).
+            3. Score them accurately from 0-100 across overallScore, pronunciation, memorization, and tajweed.
+            
             ${language === 'ml' 
-                ? 'PROVIDE ALL FEEDBACK (msgMl, actionMl) IN CLEAR, ENCOURAGING, AND FRIENDLY MALAYALAM WITH A WARM KERALA COASTAL/LOCAL FLAVOR.' 
+                ? 'PROVIDE ALL FEEDBACK (msgMl, actionMl) IN CLEAR, ENCOURAGING, AND FRIENDLY MALAYALAM WITH A WARM KERALA LOCAL FLAVOR.' 
                 : 'Provide feedback clearly, professionally, and constructively in English.'}
 
-            You MUST point out specific errors or areas of improvement. Give concrete, actionable advice on how to fix their tongue position or breathing.
-
-            Respond ONLY with a valid JSON object matching this exact structure, with no markdown formatting outside the JSON:
+            EXAMPLE OF EXPECTED JSON FORMAT:
             {
-                "overallScore": number,
-                "pronunciation": number,
-                "memorization": number,
-                "tajweed": number,
+                "overallScore": 88,
+                "pronunciation": 85,
+                "memorization": 95,
+                "tajweed": 84,
                 "feedback": [
                     { 
-                        "type": "perfect" | "warning" | "error", 
-                        "verse": "e.g. Verse 3", 
-                        "msgEn": "Detailed English explanation of what went wrong or right.", 
-                        "msgMl": "Detailed Malayalam explanation with friendly local tone.", 
-                        "ar": "The specific Arabic word or letter involved (or empty string)",
-                        "actionEn": "Step-by-step actionable advice in English.",
-                        "actionMl": "Step-by-step actionable advice in Malayalam."
+                        "type": "warning", 
+                        "verse": "Verse 2", 
+                        "msgEn": "The Madd length was too short.", 
+                        "msgMl": "മദ്ഡ് കുറച്ചുകൂടി നീട്ടി ഓതുക.", 
+                        "ar": "الرَّحْمَٰنِ",
+                        "actionEn": "Hold the vowel for 4 counts.", 
+                        "actionMl": "4 അലിഫ് നീളം നൽകുക." 
                     }
                 ]
             }
+
+            Respond ONLY with a valid JSON object matching this exact structure, with no markdown code blocks outside.
         `;
 
-        // Execute Model Fallback Loop
         let parsedData = null;
         let lastError = null;
 
         for (const modelName of FALLBACK_MODELS) {
             try {
-                console.log(`🤖 Requesting analysis using model: ${modelName}...`);
+                console.log(`🤖 Requesting high-accuracy analysis using model: ${modelName}...`);
                 const model = genAI.getGenerativeModel({ model: modelName });
                 
                 const result = await model.generateContent({
@@ -114,9 +130,9 @@ const promptText = `
                 const rawText = result.response.text();
                 parsedData = JSON.parse(rawText);
                 console.log(`✅ Success using model: ${modelName}`);
-                break; // Exit loop on success
+                break;
             } catch (err) {
-                console.warn(`⚠️ Model ${modelName} failed/rate limited. Switching to next fallback...`);
+                console.warn(`⚠️ Model ${modelName} failed/rate limited. Switching fallback...`);
                 lastError = err;
             }
         }
@@ -125,13 +141,12 @@ const promptText = `
             throw lastError || new Error("All fallback models failed.");
         }
 
-        // Cleanup temporary files
         if (fs.existsSync(audioFilePath)) fs.unlinkSync(audioFilePath);
         if (uploadedFileRef) await fileManager.deleteFile(uploadedFileRef.file.name);
 
         res.json({
             status: "success",
-            message: "Recitation analyzed successfully.",
+            message: "Recitation analyzed with high accuracy.",
             data: parsedData
         });
 
