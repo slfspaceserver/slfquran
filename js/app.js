@@ -1,6 +1,6 @@
 /**
  * Quran AI Coach - MVP JavaScript
- * Updated with Firebase Authentication, Custom Date Filter, & Profile Saving
+ * Restored Architecture + Profile, Constraints, Search & API Integration
  */
 
 const firebaseConfig = {
@@ -22,6 +22,7 @@ const db = firebase.firestore();
 const app = (() => {
     let currentView = 'home-view';
     let viewHistory = ['home-view'];
+    let surahs = []; // Dynamically fetched
     let selectedSurah = null;
     let recordingTimer = null;
     let seconds = 0;
@@ -44,14 +45,51 @@ const app = (() => {
 
     let currentUser = null;
 
-    // Fetch user-specific data from Firestore
+    const els = {
+        backBtnContainer: document.getElementById('back-btn-container'), surahList: document.getElementById('surah-list'), surahSearch: document.getElementById('surah-search'),
+        recordSurahName: document.getElementById('record-surah-name'), micWaves: document.getElementById('mic-waves'), recordTimer: document.getElementById('record-timer'),
+        recordStatus: document.getElementById('record-status'), btnMic: document.getElementById('btn-mic'), resultSurahName: document.getElementById('result-surah-name'),
+        feedbackList: document.getElementById('feedback-list'), weeklyChart: document.getElementById('weekly-chart'), langBtn: document.getElementById('lang-btn'),
+        historyList: document.getElementById('history-list'), progressDetails: document.getElementById('progress-details'), currentViewDate: document.getElementById('current-view-date'),
+        recordingPopup: document.getElementById('recording-popup'), initialLoader: document.getElementById('initial-loader'),
+        historySearch: document.getElementById('history-search'), progressSearch: document.getElementById('progress-search'),
+        recordActionBar: document.getElementById('record-action-bar'), mainBottomNav: document.getElementById('main-bottom-nav')
+    };
+
+    const init = () => {
+        applyLanguage();
+        fetchQuranData(); // Fetch 114 Surahs from API
+        
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                loadUserData(user);
+                navigateTo('home-view');
+            } else {
+                currentUser = null;
+                navigateTo('auth-view');
+            }
+            if(els.initialLoader) els.initialLoader.classList.add('hidden');
+        });
+    };
+
+    // 1. Fetch 114 Surahs from API
+    const fetchQuranData = async () => {
+        try {
+            const res = await fetch('https://api.alquran.cloud/v1/surah');
+            const data = await res.json();
+            surahs = data.data.map(s => ({
+                id: s.number, number: s.number, nameEn: s.englishName, nameAr: s.name, verses: s.numberOfAyahs
+            }));
+            renderSurahList(surahs);
+        } catch (e) {
+            console.error("Failed to load surahs", e);
+        }
+    };
+
     const loadUserData = async (user) => {
         currentUser = user;
         try {
-            const localSettings = JSON.parse(localStorage.getItem(`quranTheme_${user.uid}`));
-            if (localSettings) appData.theme = localSettings.theme;
-
-            // Load Profile
+            // Load Profile Data
             const userDoc = await db.collection('users').doc(user.uid).get();
             if (userDoc.exists && userDoc.data().profile) {
                 appData.profile = userDoc.data().profile;
@@ -63,7 +101,9 @@ const app = (() => {
                 document.getElementById('profile-email').value = user.email || '';
             }
 
-            // Load History
+            const localSettings = JSON.parse(localStorage.getItem(`quranTheme_${user.uid}`));
+            if (localSettings) appData.theme = localSettings.theme;
+
             const snapshot = await db.collection('users').doc(user.uid).collection('history').orderBy('date', 'desc').get();
             appData.history = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
@@ -80,9 +120,7 @@ const app = (() => {
         if (newEntry) {
             try {
                 await db.collection('users').doc(currentUser.uid).collection('history').doc(newEntry.id.toString()).set(newEntry);
-            } catch (error) {
-                console.error("Error saving history:", error);
-            }
+            } catch (error) { console.error("Error saving history:", error); }
         }
     };
 
@@ -92,10 +130,9 @@ const app = (() => {
         appData.profile = { name };
         try {
             await db.collection('users').doc(currentUser.uid).set({ profile: appData.profile }, { merge: true });
-            alert(currentLang === 'en' ? "Profile Saved Successfully!" : "പ്രൊഫൈൽ അപ്ഡേറ്റ് ചെയ്തു!");
+            alert(currentLang === 'en' ? "Profile Saved Successfully!" : "പ്രൊഫൈൽ സേവ് ചെയ്തു!");
             goBack();
         } catch(error) {
-            console.error("Error saving profile", error);
             alert("Error saving profile.");
         }
     };
@@ -125,60 +162,8 @@ const app = (() => {
         }
     };
 
-    const surahs = [
-        { id: 1, number: 1, nameEn: "Al-Fatihah", nameMl: "അൽ-ഫാതിഹ", nameAr: "الفاتحة", verses: 7 },
-        { id: 2, number: 2, nameEn: "Al-Baqarah", nameMl: "അൽ-ബഖറ", nameAr: "البقرة", verses: 286 },
-        { id: 18, number: 18, nameEn: "Al-Kahf", nameMl: "അൽ-കഹ്ഫ്", nameAr: "الكهف", verses: 110 },
-        { id: 36, number: 36, nameEn: "Ya-Sin", nameMl: "യാസീൻ", nameAr: "يس", verses: 83 },
-        { id: 55, number: 55, nameEn: "Ar-Rahman", nameMl: "അർ-റഹ്മാൻ", nameAr: "الرحمن", verses: 78 },
-        { id: 67, number: 67, nameEn: "Al-Mulk", nameMl: "അൽ-മുൽക്", nameAr: "الملك", verses: 30 },
-        { id: 112, number: 112, nameEn: "Al-Ikhlas", nameMl: "അൽ-ഇഖ്‌ലാസ്", nameAr: "الإخلاص", verses: 4 },
-        { id: 113, number: 113, nameEn: "Al-Falaq", nameMl: "അൽ-ഫലഖ്", nameAr: "الفلق", verses: 5 },
-        { id: 114, number: 114, nameEn: "An-Nas", nameMl: "അൻ-നാസ്", nameAr: "الناس", verses: 6 }
-    ];
-
-    const els = {
-        backBtnContainer: document.getElementById('back-btn-container'), surahList: document.getElementById('surah-list'), surahSearch: document.getElementById('surah-search'),
-        recordSurahName: document.getElementById('record-surah-name'), micWaves: document.getElementById('mic-waves'), recordTimer: document.getElementById('record-timer'),
-        recordStatus: document.getElementById('record-status'), btnMic: document.getElementById('btn-mic'), resultSurahName: document.getElementById('result-surah-name'),
-        feedbackList: document.getElementById('feedback-list'), weeklyChart: document.getElementById('weekly-chart'), langBtn: document.getElementById('lang-btn'),
-        historyList: document.getElementById('history-list'), progressDetails: document.getElementById('progress-details'), currentViewDate: document.getElementById('current-view-date'),
-        recordingPopup: document.getElementById('recording-popup'), initialLoader: document.getElementById('initial-loader'),
-        customDatePicker: document.getElementById('custom-date-picker'), scoreOverallText: document.getElementById('score-overall-text')
-    };
-
-    const init = () => {
-        applyLanguage();
-        renderSurahList(surahs);
-        
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                loadUserData(user);
-                navigateTo('home-view');
-            } else {
-                currentUser = null;
-                navigateTo('auth-view');
-            }
-            if(els.initialLoader) els.initialLoader.classList.add('hidden');
-        });
-    };
-
-    const signup = async () => {
-        const email = document.getElementById('auth-email').value;
-        const password = document.getElementById('auth-password').value;
-        try {
-            await auth.createUserWithEmailAndPassword(email, password);
-            alert("Account created successfully!");
-        } catch (error) { alert(error.message); }
-    };
-
-    const login = async () => {
-        const email = document.getElementById('auth-email').value;
-        const password = document.getElementById('auth-password').value;
-        try { await auth.signInWithEmailAndPassword(email, password); } 
-        catch (error) { alert(error.message); }
-    };
-
+    const signup = async () => { const email = document.getElementById('auth-email').value; const password = document.getElementById('auth-password').value; try { await auth.createUserWithEmailAndPassword(email, password); alert("Account created successfully!"); } catch (error) { alert(error.message); } };
+    const login = async () => { const email = document.getElementById('auth-email').value; const password = document.getElementById('auth-password').value; try { await auth.signInWithEmailAndPassword(email, password); } catch (error) { alert(error.message); } };
     const logout = () => { auth.signOut(); };
 
     const toggleLanguage = () => {
@@ -200,21 +185,11 @@ const app = (() => {
         if (searchInput) searchInput.placeholder = i18n[currentLang].search_placeholder;
     };
 
-    const toggleTheme = () => {
-        appData.theme = appData.theme === 'dark' ? 'light' : 'dark';
-        saveData();
-        applyTheme();
-    };
-
+    const toggleTheme = () => { appData.theme = appData.theme === 'dark' ? 'light' : 'dark'; saveData(); applyTheme(); };
     const applyTheme = () => {
         const toggleBtn = document.querySelector('.toggle');
-        if (appData.theme === 'light') {
-            document.body.classList.add('light-mode');
-            if(toggleBtn) toggleBtn.classList.remove('active');
-        } else {
-            document.body.classList.remove('light-mode');
-            if(toggleBtn) toggleBtn.classList.add('active');
-        }
+        if (appData.theme === 'light') { document.body.classList.add('light-mode'); if(toggleBtn) toggleBtn.classList.remove('active'); } 
+        else { document.body.classList.remove('light-mode'); if(toggleBtn) toggleBtn.classList.add('active'); }
     };
 
     const navigateTo = (viewId, event = null) => {
@@ -231,15 +206,29 @@ const app = (() => {
         const targetView = document.getElementById(viewId);
         if (targetView) targetView.classList.add('active');
 
+        // Manage Bottom Navigation & Sticky Bar Visibility
+        if (viewId === 'record-view' || viewId === 'analysis-view' || viewId === 'result-view' || viewId === 'auth-view') {
+            if(els.backBtnContainer && viewId !== 'auth-view') els.backBtnContainer.style.display = 'block';
+            if (els.mainBottomNav) els.mainBottomNav.style.display = 'none';
+        } else {
+            if(els.backBtnContainer) els.backBtnContainer.style.display = 'none';
+            if (els.mainBottomNav) els.mainBottomNav.style.display = 'flex';
+        }
+
+        // Specifically toggle the external Record Action Bar
+        if (viewId === 'record-view') {
+            if (els.recordActionBar) els.recordActionBar.style.display = 'flex';
+        } else {
+            if (els.recordActionBar) els.recordActionBar.style.display = 'none';
+        }
+
         if (viewId !== currentView) {
             if (['home-view', 'progress-view', 'history-view', 'settings-view'].includes(viewId)) {
                 viewHistory = [viewId]; 
-                if(els.backBtnContainer) els.backBtnContainer.style.display = 'none';
                 if(viewId === 'home-view' || viewId === 'history-view') updateDashboard();
                 if(viewId === 'progress-view') { updateDashboard(); updateDateDisplay(); }
             } else {
                 viewHistory.push(viewId);
-                if(els.backBtnContainer) els.backBtnContainer.style.display = 'block';
             }
         }
         currentView = viewId;
@@ -257,7 +246,7 @@ const app = (() => {
         const verseText = i18n[currentLang].verses;
         if(els.surahList) {
             els.surahList.innerHTML = data.map(s => {
-                const displayName = currentLang === 'en' ? s.nameEn : s.nameMl;
+                const displayName = currentLang === 'en' ? s.nameEn : (s.nameMl || s.nameEn);
                 return `
                 <div class="surah-item glass-card" onclick="app.selectSurah(${s.id})">
                     <div class="recent-info">
@@ -272,15 +261,38 @@ const app = (() => {
 
     const filterSurahs = () => {
         const query = els.surahSearch.value.toLowerCase();
-        const filtered = surahs.filter(s => s.nameEn.toLowerCase().includes(query) || s.nameMl.includes(query) || s.number.toString().includes(query));
+        const filtered = surahs.filter(s => s.nameEn.toLowerCase().includes(query) || (s.nameMl && s.nameMl.includes(query)) || s.number.toString().includes(query));
         renderSurahList(filtered);
     };
 
-    const selectSurah = (id) => {
+    const toArabicNumeral = (n) => n.toString().replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+
+    // FETCH ARABIC TEXT ON SURAH CLICK
+    const selectSurah = async (id) => {
+        if(els.initialLoader) els.initialLoader.classList.remove('hidden');
         selectedSurah = surahs.find(s => s.id === id);
-        els.recordSurahName.textContent = currentLang === 'en' ? selectedSurah.nameEn : selectedSurah.nameMl;
-        resetRecording();
-        navigateTo('record-view');
+        
+        try {
+            const res = await fetch(`https://api.alquran.cloud/v1/surah/${id}/quran-uthmani`);
+            const data = await res.json();
+            
+            // Format Ayahs into a readable block
+            const ayahText = data.data.ayahs.map(a => a.text + ` <span style="color:var(--primary);">﴿${toArabicNumeral(a.numberInSurah)}﴾</span>`).join(' &nbsp; ');
+            document.getElementById('record-surah-text').innerHTML = ayahText;
+            
+            els.recordSurahName.textContent = currentLang === 'en' ? selectedSurah.nameEn : (selectedSurah.nameMl || selectedSurah.nameEn);
+            document.getElementById('record-surah-meta').textContent = `${data.data.numberOfAyahs} ${i18n[currentLang].verses}`;
+            
+            // Hide Bismillah manually for Fatihah & Tawbah
+            document.getElementById('practice-bismillah').style.display = (id === 1 || id === 9) ? 'none' : 'block';
+
+            resetRecording();
+            if(els.initialLoader) els.initialLoader.classList.add('hidden');
+            navigateTo('record-view');
+        } catch(e) {
+            if(els.initialLoader) els.initialLoader.classList.add('hidden');
+            alert("Error loading Surah text from API.");
+        }
     };
 
     const formatTime = (sec) => {
@@ -291,16 +303,18 @@ const app = (() => {
 
     const resetRecording = () => {
         clearInterval(recordingTimer);
-        seconds = 0; isRecording = false;
+        seconds = 0;
+        isRecording = false;
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
             mediaRecorder.stop();
             mediaRecorder.stream.getTracks().forEach(track => track.stop());
         }
-        mediaRecorder = null; audioChunks = [];
+        mediaRecorder = null;
+        audioChunks = [];
         els.recordTimer.textContent = "00:00";
         els.micWaves.classList.remove('active');
         els.btnMic.classList.remove('active');
-        els.btnMic.innerHTML = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`;
+        els.btnMic.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`;
         els.recordStatus.textContent = i18n[currentLang].tap_to_start;
         els.recordStatus.classList.add('stopped');
         
@@ -314,7 +328,7 @@ const app = (() => {
             if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.pause();
             els.micWaves.classList.remove('active');
             els.btnMic.classList.remove('active');
-            els.btnMic.innerHTML = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`;
+            els.btnMic.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`;
             els.recordStatus.textContent = i18n[currentLang].paused;
             els.recordStatus.classList.add('stopped');
             
@@ -370,7 +384,10 @@ const app = (() => {
     };
 
     const finishRecording = () => {
-        if (seconds === 0) { cancelRecording(); return; }
+        if (seconds === 0) {
+            cancelRecording();
+            return;
+        }
         clearInterval(recordingTimer);
         if (els.recordingPopup) els.recordingPopup.classList.add('hidden');
 
@@ -436,7 +453,7 @@ const app = (() => {
     };
 
     const generateAIResults = (realData = null) => {
-        els.resultSurahName.textContent = selectedSurah ? (currentLang === 'en' ? selectedSurah.nameEn : selectedSurah.nameMl) : "Practice Session";
+        els.resultSurahName.textContent = selectedSurah ? (currentLang === 'en' ? selectedSurah.nameEn : (selectedSurah.nameMl || selectedSurah.nameEn)) : "Practice Session";
 
         const overall = realData ? realData.overallScore : Math.floor(Math.random() * (99 - 85 + 1) + 85);
         const pronun = realData ? realData.pronunciation : 92;
@@ -448,7 +465,7 @@ const app = (() => {
                 id: Date.now(),
                 surahId: selectedSurah.id,
                 surahNameEn: selectedSurah.nameEn,
-                surahNameMl: selectedSurah.nameMl,
+                surahNameMl: selectedSurah.nameMl || selectedSurah.nameEn,
                 score: overall,
                 date: new Date().toISOString(),
                 fullData: realData
@@ -458,7 +475,7 @@ const app = (() => {
         }
 
         // FORCE SCORE UPDATE IN THE DOM
-        if(els.scoreOverallText) els.scoreOverallText.textContent = `${overall}%`;
+        if(document.getElementById('score-overall-text')) document.getElementById('score-overall-text').textContent = `${overall}%`;
         
         const circle = document.querySelector('.circle-value');
         if(circle) {
@@ -523,7 +540,7 @@ const app = (() => {
         if (recentCard) {
             if (totalSessions > 0) {
                 const last = appData.history[0];
-                const name = currentLang === 'en' ? last.surahNameEn : last.surahNameMl;
+                const name = currentLang === 'en' ? last.surahNameEn : (last.surahNameMl || last.surahNameEn);
                 recentCard.innerHTML = `
                     <div class="recent-info">
                         <span class="surah-number">${last.surahId}</span>
@@ -538,18 +555,29 @@ const app = (() => {
             }
         }
 
-        renderHistoryList();
+        renderHistoryList(appData.history);
         renderProgressChart();
     };
 
-    const renderHistoryList = () => {
+    // HISTORY SEARCH FILTER
+    const filterHistory = () => {
+        if(!els.historySearch) return;
+        const query = els.historySearch.value.toLowerCase();
+        const filtered = appData.history.filter(h => 
+            h.surahNameEn.toLowerCase().includes(query) || 
+            (h.surahNameMl && h.surahNameMl.includes(query))
+        );
+        renderHistoryList(filtered);
+    };
+
+    const renderHistoryList = (dataList) => {
         if(els.historyList) {
-            if (appData.history.length === 0) {
+            if (dataList.length === 0) {
                 els.historyList.innerHTML = `<p class="text-center text-secondary mt-4">No sessions recorded yet.</p>`;
                 return;
             }
-            els.historyList.innerHTML = appData.history.map(h => {
-                const name = currentLang === 'en' ? h.surahNameEn : h.surahNameMl;
+            els.historyList.innerHTML = dataList.map(h => {
+                const name = currentLang === 'en' ? h.surahNameEn : (h.surahNameMl || h.surahNameEn);
                 const dateStr = new Date(h.date).toLocaleDateString(currentLang === 'en' ? 'en-US' : 'ml-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
                 return `
                 <div class="glass-card history-item" style="margin-bottom: 0.75rem;" onclick="app.viewPastSession('${h.id}')">
@@ -579,14 +607,26 @@ const app = (() => {
         if (els.weeklyChart) els.weeklyChart.innerHTML = chartHTML;
     };
 
-    // --- Date Navigator & Custom Filter ---
+    // PROGRESS TAB SEARCH
+    const filterProgress = () => {
+        if(!els.progressSearch) return;
+        const query = els.progressSearch.value.toLowerCase();
+        const dateStr = currentViewDate.toDateString();
+        const dayRecords = appData.history.filter(h => new Date(h.date).toDateString() === dateStr);
+        const filtered = dayRecords.filter(h => 
+            h.surahNameEn.toLowerCase().includes(query) || 
+            (h.surahNameMl && h.surahNameMl.includes(query))
+        );
+        renderProgressDetails(filtered);
+    };
+
+    // --- Date Navigator & Constraints ---
     const updateDateDisplay = () => {
         if (!els.currentViewDate || !els.progressDetails) return;
 
         const isToday = new Date().toDateString() === currentViewDate.toDateString();
         els.currentViewDate.textContent = isToday ? (currentLang === 'en' ? 'Today' : 'ഇന്ന്') : currentViewDate.toLocaleDateString(currentLang === 'en' ? 'en-US' : 'ml-IN', { month: 'short', day: 'numeric', year: 'numeric' });
 
-        // Update the invisible date picker value
         if (els.customDatePicker) {
             const tzOffset = currentViewDate.getTimezoneOffset() * 60000;
             const localISOTime = (new Date(currentViewDate - tzOffset)).toISOString().split('T')[0];
@@ -595,14 +635,18 @@ const app = (() => {
 
         const dateStr = currentViewDate.toDateString();
         const dayRecords = appData.history.filter(h => new Date(h.date).toDateString() === dateStr);
+        renderProgressDetails(dayRecords);
+        if (els.progressSearch) els.progressSearch.value = ""; 
+    };
 
-        if (dayRecords.length === 0) {
-            els.progressDetails.innerHTML = `<p class="text-center text-secondary mt-2">${currentLang === 'en' ? 'No practice data for this date.' : 'ഈ തീയതിയിൽ പരിശീലന വിവരങ്ങളില്ല.'}</p>`;
+    const renderProgressDetails = (records) => {
+        if (records.length === 0) {
+            els.progressDetails.innerHTML = `<p class="text-center text-secondary mt-2">${currentLang === 'en' ? 'No practice data for this selection.' : 'ഈ തീയതിയിൽ പരിശീലന വിവരങ്ങളില്ല.'}</p>`;
             return;
         }
 
-        els.progressDetails.innerHTML = dayRecords.map(h => {
-            const name = currentLang === 'en' ? h.surahNameEn : h.surahNameMl;
+        els.progressDetails.innerHTML = records.map(h => {
+            const name = currentLang === 'en' ? h.surahNameEn : (h.surahNameMl || h.surahNameEn);
             const timeStr = new Date(h.date).toLocaleTimeString(currentLang === 'en' ? 'en-US' : 'ml-IN', { hour: '2-digit', minute: '2-digit' });
             return `
             <div class="glass-card history-item" style="margin-bottom: 0.75rem;" onclick="app.viewPastSession('${h.id}')">
@@ -612,23 +656,34 @@ const app = (() => {
         }).join('');
     };
 
-    // Prevent filtering before the very first practice session date
     const changeDate = (days) => {
+        const targetDate = new Date(currentViewDate);
+        targetDate.setDate(targetDate.getDate() + days);
+        targetDate.setHours(0,0,0,0);
+
+        const today = new Date();
+        today.setHours(0,0,0,0);
+
+        // Constraint: Don't allow future dates
+        if (days > 0 && targetDate > today) {
+            alert(currentLang === 'en' ? "Cannot view future dates." : "ഭാവിയിലെ തീയതികൾ കാണാൻ കഴിയില്ല.");
+            return;
+        }
+
+        // Constraint: Don't allow scrolling back before the earliest record
         if (days < 0 && appData.history.length > 0) {
-            const oldestRecord = appData.history[appData.history.length - 1];
-            const oldestDate = new Date(oldestRecord.date);
+            const oldestDate = new Date(appData.history[appData.history.length - 1].date);
             oldestDate.setHours(0,0,0,0);
-            
-            const testDate = new Date(currentViewDate);
-            testDate.setDate(testDate.getDate() + days);
-            testDate.setHours(0,0,0,0);
-            
-            if (testDate < oldestDate) {
-                alert(currentLang === 'en' ? "You have no records prior to this date." : "ഇതിന് മുൻപ് റെക്കോർഡുകൾ ഇല്ല.");
+            if (targetDate < oldestDate) {
+                alert(currentLang === 'en' ? "No practice history before this date." : "ഇതിന് മുൻപ് പരിശീലന ചരിത്രമില്ല.");
                 return;
             }
+        } else if (days < 0 && appData.history.length === 0) {
+             alert(currentLang === 'en' ? "No practice history yet." : "പരിശീലന ചരിത്രമില്ല.");
+             return;
         }
-        currentViewDate.setDate(currentViewDate.getDate() + days);
+
+        currentViewDate = targetDate;
         updateDateDisplay();
     };
 
@@ -641,9 +696,9 @@ const app = (() => {
     document.addEventListener('DOMContentLoaded', init);
 
     return {
-        navigateTo, goBack, filterSurahs, selectSurah, 
-        toggleRecording, cancelRecording, finishRecording, 
+        navigateTo, goBack, filterSurahs, filterHistory, filterProgress, selectSurah, 
+        toggleRecording, cancelRecording, finishRecording, saveProfile,
         toggleLanguage, toggleTheme, viewPastSession,
-        login, signup, logout, changeDate, selectCustomDate, saveProfile
+        login, signup, logout, changeDate, selectCustomDate
     };
 })();
