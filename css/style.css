@@ -1,3 +1,6 @@
+/* ADD THIS TO THE BOTTOM OF YOUR style.css */
+.ptab.active { background: var(--primary); color: #000 !important; font-weight: 600; }
+
 /* ==========================================================================
    Design System & Variables
    ========================================================================== */

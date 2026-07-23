@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Quran AI Coach</title>
-    <!-- Added Noto Sans Malayalam for premium regional typography -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Amiri:wght@400;700&family=Noto+Sans+Malayalam:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <style>
@@ -18,20 +17,16 @@
         <div class="loader-circular"></div>
     </div>
 
-    <!-- Global Recording Popup (For background recording) -->
     <div id="recording-popup" class="recording-popup hidden">
         <span id="recording-text" data-i18n="recording_in_progress">🔴 Recording in progress...</span>
         <button onclick="app.finishRecording()" class="stop-btn" data-i18n="finish">Finish</button>
     </div>
 
     <div class="app-container">
-        <!-- TOP NAVBAR -->
         <header class="app-header">
-        <div class="logo" style="display: flex; align-items: center; gap: 8px;">
+            <div class="logo" style="display: flex; align-items: center; gap: 8px;">
                 <img src="https://raw.githubusercontent.com/slfspaceserver/slfquran/main/img/logo-slf-quran.png" alt="Logo" style="width: auto; height: 32px; object-fit: contain;">
-                
             </div>
-            
             <div style="display: flex; gap: 10px; align-items: center;">
                 <button class="lang-toggle" onclick="app.toggleLanguage()" id="lang-btn">മലയാളം</button>
                 <div class="header-actions" id="back-btn-container" style="display: none;">
@@ -46,29 +41,25 @@
         </header>
 
         <main class="app-main">
-
-    <!-- Auth View -->
-<div id="auth-view" class="view active">
+            <!-- Auth View -->
+            <div id="auth-view" class="view active">
                 <div class="auth-card glass-card">
                     <div style="display:flex; justify-content:center; margin-bottom: 1rem; margin-top: 30px;">
                         <img src="img/logo-slf-quran.png" alt="Logo" style="width: 130px; height: 56px; object-fit: contain;">
                     </div>
                     <p style="color: var(--text-sec); margin-bottom: 1.5rem; font-size: 0.85rem;">Sign in to save your practice history</p>
                     
-                    <!-- Auth Toggle Tabs -->
                     <div class="auth-toggle mb-4">
                         <button class="auth-tab active" onclick="app.switchAuth('login')" id="tab-login">Login</button>
                         <button class="auth-tab" onclick="app.switchAuth('signup')" id="tab-signup">Sign Up</button>
                     </div>
 
-                    <!-- Login Form -->
                     <div id="login-form">
                         <input type="email" id="login-email" placeholder="Email Address" class="auth-input">
                         <input type="password" id="login-password" placeholder="Password" class="auth-input">
                         <button onclick="app.login()" class="auth-btn-primary">Login</button>
                     </div>
 
-                    <!-- Sign Up Form (Hidden by default) -->
                     <div id="signup-form" class="hidden">
                         <input type="text" id="signup-name" placeholder="Full Name" class="auth-input">
                         <input type="email" id="signup-email" placeholder="Email Address" class="auth-input">
@@ -82,7 +73,6 @@
                         <div style="flex:1; height:1px; background:rgba(255,255,255,0.1);"></div>
                     </div>
 
-                    <!-- Google Authentication Button -->
                     <button onclick="app.googleLogin()" class="auth-btn-google">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="margin-right:8px;"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
                         Continue with Google
@@ -122,6 +112,26 @@
                     </button>
                 </div>
 
+                <!-- ADDED: Today's Goal -->
+<!-- DYNAMIC: Today's Goal -->
+                <div class="section-header">
+                    <h2 data-i18n="todays_goal">Today's Goal</h2>
+                </div>
+                <div class="glass-card mb-4" onclick="app.navigateTo('goal-view')" style="cursor:pointer; display: flex; align-items: center; gap: 1rem; transition: transform 0.2s;">
+                    <div id="goal-ring" style="width: 55px; height: 55px; border-radius: 50%; background: conic-gradient(var(--primary) 0%, rgba(255,255,255,0.05) 0); display: flex; align-items: center; justify-content: center; transition: background 0.5s ease;">
+                        <span id="goal-ring-text" style="width: 43px; height: 43px; background: var(--card); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">0%</span>
+                    </div>
+                    <div style="flex: 1;">
+                        <h3 id="goal-progress-text" style="font-size: 1rem; margin-bottom: 2px;">0 / 5 <span class="text-secondary" style="font-size:0.8rem; font-weight:normal;">Sessions</span></h3>
+                        <p class="text-secondary" style="font-size:0.75rem; margin-bottom:6px;" data-i18n="completed">Completed</p>
+                        <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;">
+                            <div id="goal-bar-fill" style="height: 100%; background: var(--primary); width: 0%; border-radius: 3px; transition: width 0.5s ease;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ... (Keep Recent Practice Here) ... -->
+
                 <div class="recent-practice">
                     <div class="section-header">
                         <h2 data-i18n="recent_practice">Recent Practice</h2>
@@ -134,10 +144,24 @@
                     </div>
                 </div>
 
-                <!-- AI Disclaimer Warning Card -->
+                <!-- DYNAMIC: Daily Recommendation -->
+                <div class="section-header mt-4">
+                    <h2 data-i18n="daily_recommendation">Daily Recommendation</h2>
+                </div>
+                <div id="rec-card" class="glass-card mb-4" style="display:flex; justify-content:space-between; align-items:center; padding:15px; cursor:pointer; transition: transform 0.2s;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(255,255,255,0.05); color: var(--accent); border-radius: var(--radius-sm); font-weight: 600;">⭐</div>
+                        <div>
+                            <h3 id="rec-surah-name" style="font-size:0.95rem; font-weight:600;">Loading...</h3>
+                            <p id="rec-surah-reason" style="font-size:0.75rem; color:var(--text-sec);">...</p>
+                        </div>
+                    </div>
+                    <span class="text-secondary">➔</span>
+                </div>
+
                 <div class="disclaimer-card glass-card">
                     <div class="disclaimer-icon">⚠️</div>
-                    <p data-i18n="disclaimer"><strong>Important:</strong> This application is an AI-assisted learning tool intended to support Quran recitation practice. AI feedback may not always be accurate. Always verify your recitation with a qualified Quran teacher.</p>
+                    <p data-i18n="disclaimer"><strong>Important:</strong> This application is an AI-assisted learning tool intended to support Quran recitation practice. AI feedback may not always be accurate.</p>
                 </div>
             </section>
 
@@ -150,19 +174,14 @@
                 <div class="surah-list" id="surah-list"></div>
             </section>
 
-            <!-- VIEW: RECORD & READ (Content Only) -->
+            <!-- VIEW: RECORD & READ -->
             <section id="record-view" class="view" style="padding: 0; position: relative;">
                 <div class="record-header" style="position: sticky; top: 0; background: var(--bg); z-index: 10; padding: 1.5rem; text-align: center; border-bottom: var(--glass-border);">
                     <h2 id="record-surah-name">Al-Fatihah</h2>
                     <p class="text-secondary" id="record-surah-meta" style="font-size:0.8rem; margin-top:5px;">Loading...</p>
                 </div>
-                
                 <div id="practice-bismillah" style="text-align:center; font-family:var(--font-arabic); font-size:1.5rem; margin-top:1.5rem; color:var(--text);">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
-                
-                <!-- Readable Surah Text -->
                 <div id="record-surah-text" class="surah-text-container"></div>
-                
-                <!-- Padding to scroll above sticky bar -->
                 <div style="height: 180px;"></div>
             </section>
 
@@ -186,8 +205,6 @@
                     <h2 data-i18n="analysis_complete">Analysis Complete</h2>
                     <p id="result-surah-name" class="text-accent">Al-Fatihah</p>
                 </div>
-                
-                <!-- Fixed Overall Accuracy Display -->
                 <div class="overall-score-container glass-card mb-4" style="display:flex; justify-content:space-between; align-items:center; padding:1.5rem; flex-direction:row;">
                     <div style="text-align:left;">
                         <h3 data-i18n="overall_accuracy" style="font-size:1.2rem; margin-bottom:5px;">Overall Accuracy</h3>
@@ -201,7 +218,6 @@
                         </svg>
                     </div>
                 </div>
-
                 <div class="metrics-grid">
                     <div class="metric-card glass-card">
                         <span class="metric-title" data-i18n="pronunciation">Pronunciation</span>
@@ -230,27 +246,34 @@
             <section id="progress-view" class="view">
                 <div class="section-header"><h2 data-i18n="progress">Your Progress</h2></div>
                 
-                <!-- Date Filter with Native Date Picker -->
-                <div class="date-navigator glass-card mt-2 mb-4" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; position:relative;">
-                    <button class="btn btn-outline" style="padding: 5px 15px;" onclick="app.changeDate(-1)">&#8592;</button>
-                    
-                    <div style="position:relative; text-align:center; cursor:pointer;" onclick="document.getElementById('custom-date-picker').showPicker() || document.getElementById('custom-date-picker').click()">
-                        <h3 id="current-view-date" style="margin: 0; font-size: 1rem;">Today</h3>
-                        <p style="font-size:0.7rem; color:var(--text-sec)">Tap to filter date</p>
-                        <!-- Invisible Native Date Picker -->
-                        <input type="date" id="custom-date-picker" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;" onchange="app.selectCustomDate(this.value)">
+                <!-- ADDED: Functional Tabs -->
+                <div class="progress-tabs mb-4" style="display: flex; background: var(--card); border: var(--glass-border); border-radius: 30px; padding: 4px;">
+                    <div class="ptab active" id="ptab-overview" onclick="app.switchProgressTab('overview')" style="flex: 1; text-align: center; padding: 10px 0; border-radius: 20px; font-size: 0.85rem; color: var(--text-sec); cursor: pointer; transition: 0.2s;">Overview</div>
+                    <div class="ptab" id="ptab-accuracy" onclick="app.switchProgressTab('accuracy')" style="flex: 1; text-align: center; padding: 10px 0; border-radius: 20px; font-size: 0.85rem; color: var(--text-sec); cursor: pointer; transition: 0.2s;">Accuracy</div>
+                    <div class="ptab" id="ptab-streak" onclick="app.switchProgressTab('streak')" style="flex: 1; text-align: center; padding: 10px 0; border-radius: 20px; font-size: 0.85rem; color: var(--text-sec); cursor: pointer; transition: 0.2s;">Streak</div>
+                    <div class="ptab" id="ptab-sessions" onclick="app.switchProgressTab('sessions')" style="flex: 1; text-align: center; padding: 10px 0; border-radius: 20px; font-size: 0.85rem; color: var(--text-sec); cursor: pointer; transition: 0.2s;">Sessions</div>
+                </div>
+
+                <!-- ADDED: Content Wrapper for toggling -->
+                <div id="progress-overview-content">
+                    <div class="date-navigator glass-card mt-2 mb-4" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; position:relative;">
+                        <button class="btn btn-outline" style="padding: 5px 15px;" onclick="app.changeDate(-1)">&#8592;</button>
+                        <div style="position:relative; text-align:center; cursor:pointer;" onclick="document.getElementById('custom-date-picker').showPicker() || document.getElementById('custom-date-picker').click()">
+                            <h3 id="current-view-date" style="margin: 0; font-size: 1rem;">Today</h3>
+                            <p style="font-size:0.7rem; color:var(--text-sec)">Tap to filter date</p>
+                            <input type="date" id="custom-date-picker" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;" onchange="app.selectCustomDate(this.value)">
+                        </div>
+                        <button class="btn btn-outline" style="padding: 5px 15px;" onclick="app.changeDate(1)">&#8594;</button>
                     </div>
 
-                    <button class="btn btn-outline" style="padding: 5px 15px;" onclick="app.changeDate(1)">&#8594;</button>
-                </div>
+                    <div class="chart-card glass-card mb-4">
+                        <div class="bar-chart" id="weekly-chart"></div>
+                        <div class="chart-labels"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+                    </div>
 
-                <div class="chart-card glass-card mb-4">
-                    <div class="bar-chart" id="weekly-chart"></div>
-                    <div class="chart-labels"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
-                </div>
-
-                <div class="search-container mb-2">
-                    <input type="text" id="progress-search" class="search-input-small" placeholder="Search sessions on this date..." onkeyup="app.filterProgress()">
+                    <div class="search-container mb-2">
+                        <input type="text" id="progress-search" class="search-input-small" placeholder="Search sessions on this date..." onkeyup="app.filterProgress()">
+                    </div>
                 </div>
                 <div id="progress-details" class="history-list mt-2"></div>
             </section>
@@ -263,7 +286,22 @@
                 </div>
                 <div class="history-list" id="history-list"></div>
             </section>
-            
+            <!-- VIEW: GOAL SETTINGS -->
+            <section id="goal-view" class="view">
+                <div class="section-header">
+                    <h2 data-i18n="goals_title">Goals & Improvement</h2>
+                </div>
+                <p class="text-secondary mb-4" style="font-size: 0.85rem;" data-i18n="goals_sub">Set your daily practice targets to build consistency.</p>
+                
+                <div class="glass-card mt-4">
+                    <div class="mb-4 text-left">
+                        <label class="text-secondary" style="font-size:0.85rem; font-weight: 500;" data-i18n="target_sessions">Daily Target Sessions</label>
+                        <input type="number" id="goal-target-sessions" class="auth-input mt-2" value="5" min="1" max="50" style="margin-bottom: 0;">
+                    </div>
+                    
+                    <button class="btn btn-primary btn-block mt-4" onclick="app.saveGoals()" data-i18n="save_goals">Save Goals</button>
+                </div>
+            </section>
             <!-- VIEW: SETTINGS -->
             <section id="settings-view" class="view">
                 <div class="section-header"><h2 data-i18n="settings">Settings</h2></div>
@@ -292,7 +330,6 @@
                     <h2 data-i18n="edit_profile">Edit Profile</h2>
                 </div>
                 <p class="text-secondary mb-4" style="font-size: 0.85rem;">Update your account information.</p>
-                
                 <div class="glass-card mt-4">
                     <div class="mb-4 text-left">
                         <label class="text-secondary" style="font-size:0.85rem; font-weight: 500;">Display Name</label>
@@ -302,13 +339,12 @@
                         <label class="text-secondary" style="font-size:0.85rem; font-weight: 500;">Email Address (Read Only)</label>
                         <input type="email" id="profile-email" class="auth-input mt-2" disabled style="opacity:0.6; margin-bottom: 0;">
                     </div>
-                    
                     <button class="btn btn-primary btn-block mt-4" onclick="app.saveProfile()">Save Changes</button>
                 </div>
             </section>
         </main>
 
-        <!-- STICKY RECORD BAR (Moved Outside .view so it sticks properly on mobile scroll) -->
+        <!-- STICKY RECORD BAR -->
         <div class="sticky-record-bar glass-card" id="record-action-bar" style="display: none;">
             <div class="timer" id="record-timer" style="font-size: 1.5rem; margin-bottom: 0; font-weight: 500;">00:00</div>
             <div class="recording-status text-primary" id="record-status" data-i18n="tap_to_start" style="font-size: 0.85rem; margin-bottom: 15px; font-weight: 600;">Tap to start</div>
@@ -327,7 +363,6 @@
             </div>
         </div>
 
-        <!-- BOTTOM NAVIGATION -->
         <nav class="bottom-nav" id="main-bottom-nav">
             <a href="#" class="nav-item active" data-target="home-view" onclick="app.navigateTo('home-view', event)">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>

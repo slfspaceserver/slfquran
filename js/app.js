@@ -1,6 +1,6 @@
 /**
  * Quran AI Coach - MVP JavaScript
- * Restored Architecture + Auth UI, Profile, Constraints, Search, API Integration + UX Fixes (No Tab Animation)
+ * Restored Architecture + Auth UI, Profile, Constraints, Search, API Integration + UX Fixes
  */
 
 const firebaseConfig = {
@@ -42,7 +42,8 @@ const app = (() => {
     let appData = {
         history: [],
         theme: 'dark',
-        profile: { name: '' }
+        profile: { name: '' },
+        goals: { targetSessions: 5 } // Goal Setting State
     };
 
     let currentUser = null;
@@ -59,8 +60,41 @@ const app = (() => {
     };
 
     // ==========================================
-    // HELPER: SILENT AUDIO DETECTION (RMS Check)
+    // PROGRESS TABS SWITCHER
     // ==========================================
+    const switchProgressTab = (tabName) => {
+        // Update active class on tabs
+        document.querySelectorAll('.ptab').forEach(tab => tab.classList.remove('active'));
+        const activeTab = document.getElementById(`ptab-${tabName}`);
+        if (activeTab) activeTab.classList.add('active');
+
+        // Target containers
+        const detailsContainer = document.getElementById('progress-details');
+        const overviewContent = document.getElementById('progress-overview-content');
+        
+        if (!detailsContainer || !overviewContent) return;
+
+        // Toggle overview section visibility
+        if (tabName !== 'overview') {
+            overviewContent.style.display = 'none';
+        } else {
+            overviewContent.style.display = 'block';
+        }
+
+        // Render dynamic content based on tab selected
+        if (tabName === 'accuracy') {
+            const avg = appData.history.length > 0 ? Math.round(appData.history.reduce((a,b)=>a+b.score,0)/appData.history.length) : 0;
+            detailsContainer.innerHTML = `<div class="glass-card text-center mt-4" style="padding: 2rem;"><h3>Average Accuracy</h3><p class="text-primary" style="font-size: 2.5rem; font-weight: 700; margin-top: 10px;">${avg}%</p></div>`;
+        } else if (tabName === 'streak') {
+            const uniqueDays = new Set(appData.history.map(h => new Date(h.date).toDateString()));
+            detailsContainer.innerHTML = `<div class="glass-card text-center mt-4" style="padding: 2rem;"><h3>Current Active Streak</h3><p class="text-accent" style="font-size: 2.5rem; font-weight: 700; margin-top: 10px;">🔥 ${uniqueDays.size} Days</p></div>`;
+        } else if (tabName === 'sessions') {
+            detailsContainer.innerHTML = `<div class="glass-card text-center mt-4" style="padding: 2rem;"><h3>Total Completed Sessions</h3><p class="text-primary" style="font-size: 2.5rem; font-weight: 700; margin-top: 10px;">🎙️ ${appData.history.length}</p></div>`;
+        } else {
+            updateDateDisplay(); // Re-render overview records
+        }
+    };
+
     const checkIfAudioHasSound = (audioBlob) => {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -75,50 +109,38 @@ const app = (() => {
                         sum += rawData[i] * rawData[i];
                     }
                     const rms = Math.sqrt(sum / rawData.length);
-                    // Resolve true if sound is detected, false if completely silent
                     resolve(rms > 0.005);
                 } catch (e) {
                     console.error("Audio context error, bypassing silence check.", e);
-                    resolve(true); // Bypass check if browser doesn't support it
+                    resolve(true); 
                 }
             };
         });
     };
 
-    // ==========================================
-    // HELPER: UPGRADED NUMBER ANIMATION
-    // ==========================================
     const animateNumber = (element, start, end, duration, suffix = "") => {
         if (!element) return;
-        
-        // Force the text to 0 immediately so it doesn't blink the old number
         element.textContent = start + suffix;
-        
         let startTimestamp = null;
         const step = (timestamp) => {
             if (!startTimestamp) startTimestamp = timestamp;
             const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-            
             const currentNumber = Math.floor(progress * (end - start) + start);
             element.textContent = currentNumber + suffix; 
-            
-            if (progress < 1) {
-                window.requestAnimationFrame(step);
-            }
+            if (progress < 1) window.requestAnimationFrame(step);
         };
         window.requestAnimationFrame(step);
     };
 
     const init = () => {
         applyLanguage();
-        fetchQuranData(); // Fetch 114 Surahs from API
+        fetchQuranData(); 
         
-        // INSTANT DATA LOAD ON REFRESH (Cache handling)
         const cachedHistory = localStorage.getItem('quranCachedHistory');
         if (cachedHistory) {
             try {
                 appData.history = JSON.parse(cachedHistory);
-                updateDashboard(true); // Animate on first load
+                updateDashboard(true); 
             } catch(e) { console.error("Error parsing cache:", e); }
         }
         
@@ -134,7 +156,6 @@ const app = (() => {
         });
     };
 
-    // 1. Fetch 114 Surahs from API
     const fetchQuranData = async () => {
         try {
             const res = await fetch('https://api.alquran.cloud/v1/surah');
@@ -143,49 +164,42 @@ const app = (() => {
                 id: s.number, number: s.number, nameEn: s.englishName, nameAr: s.name, verses: s.numberOfAyahs
             }));
             renderSurahList(surahs);
-        } catch (e) {
-            console.error("Failed to load surahs", e);
-        }
+            generateDailyRecommendation(); // Generate recommendation after surahs load
+        } catch (e) { console.error("Failed to load surahs", e); }
     };
 
     const loadUserData = async (user) => {
         currentUser = user;
         try {
-            // Load Profile Data
             const userDoc = await db.collection('users').doc(user.uid).get();
-            if (userDoc.exists && userDoc.data().profile) {
-                appData.profile = userDoc.data().profile;
+            if (userDoc.exists) {
+                if (userDoc.data().profile) appData.profile = userDoc.data().profile;
+                if (userDoc.data().goals) appData.goals = userDoc.data().goals; // Fetch Goals
+                
                 if(document.getElementById('profile-name')) {
                     document.getElementById('profile-name').value = appData.profile.name || '';
                 }
+                if(document.getElementById('goal-target-sessions')) {
+                    document.getElementById('goal-target-sessions').value = appData.goals.targetSessions || 5;
+                }
             }
-            if(document.getElementById('profile-email')) {
-                document.getElementById('profile-email').value = user.email || '';
-            }
-
             const localSettings = JSON.parse(localStorage.getItem(`quranTheme_${user.uid}`));
             if (localSettings) appData.theme = localSettings.theme;
 
             const snapshot = await db.collection('users').doc(user.uid).collection('history').orderBy('date', 'desc').get();
             appData.history = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            // Save to local cache for instant reload next time
             localStorage.setItem('quranCachedHistory', JSON.stringify(appData.history));
 
             applyTheme();
-            updateDashboard(true); // <--- Added 'true' here to animate upon successful login/load
-        } catch (error) {
-            console.error("Error loading user data:", error);
-        }
+            updateDashboard(true); 
+        } catch (error) { console.error("Error loading user data:", error); }
     };
 
     const saveData = async (newEntry = null) => {
         if (!currentUser) return;
         localStorage.setItem(`quranTheme_${currentUser.uid}`, JSON.stringify({ theme: appData.theme }));
-        
-        // Update Cache instantly
         localStorage.setItem('quranCachedHistory', JSON.stringify(appData.history));
-        
         if (newEntry) {
             try {
                 await db.collection('users').doc(currentUser.uid).collection('history').doc(newEntry.id.toString()).set(newEntry);
@@ -201,9 +215,19 @@ const app = (() => {
             await db.collection('users').doc(currentUser.uid).set({ profile: appData.profile }, { merge: true });
             alert(currentLang === 'en' ? "Profile Saved Successfully!" : "പ്രൊഫൈൽ സേവ് ചെയ്തു!");
             goBack();
-        } catch(error) {
-            alert("Error saving profile.");
-        }
+        } catch(error) { alert("Error saving profile."); }
+    };
+
+    const saveGoals = async () => {
+        if(!currentUser) return;
+        const target = parseInt(document.getElementById('goal-target-sessions').value) || 5;
+        appData.goals = { targetSessions: target };
+        try {
+            await db.collection('users').doc(currentUser.uid).set({ goals: appData.goals }, { merge: true });
+            alert(currentLang === 'en' ? "Goals Saved Successfully!" : "ലക്ഷ്യങ്ങൾ സേവ് ചെയ്തു!");
+            updateDashboard(); // Instantly update the home UI
+            goBack();
+        } catch(error) { alert("Error saving goals."); }
     };
 
     const i18n = {
@@ -216,7 +240,8 @@ const app = (() => {
             analysis_complete: "Analysis Complete", overall_accuracy: "Overall Accuracy", pronunciation: "Pronunciation", memorization: "Memorization", tajweed: "Tajweed",
             detailed_feedback: "Detailed Feedback", done: "Done", progress: "Your Progress", history: "Practice History", settings: "Settings", dark_mode: "Dark Mode",
             nav_home: "Home", nav_progress: "Progress", nav_history: "History", nav_settings: "Settings", verses: "Verses", verse: "Verse", mic_error: "Microphone access denied.",
-            recording_in_progress: "🔴 Recording in progress..."
+            recording_in_progress: "🔴 Recording in progress...",
+            todays_goal: "Today's Goal", completed: "Completed", daily_recommendation: "Daily Recommendation", goals_title: "Goals & Improvement", goals_sub: "Set your daily practice targets to build consistency.", target_sessions: "Daily Target Sessions", save_goals: "Save Goals"
         },
         ml: {
             app_title: "ഖുർആൻ AI കോച്ച്", hero_title: "പരിശീലിക്കുക. മെച്ചപ്പെടുത്തുക.<br><span class='text-primary'>ആത്മവിശ്വാസത്തോടെ പാരായണം ചെയ്യുക.</span>", hero_sub: "നിങ്ങളുടെ സ്വന്തം AI ഖുർആൻ പാരായണ സഹായി.",
@@ -227,11 +252,11 @@ const app = (() => {
             analysis_complete: "പരിശോധന പൂർത്തിയായി", overall_accuracy: "മൊത്തത്തിലുള്ള കൃത്യത", pronunciation: "ഉച്ചാരണം", memorization: "മനഃപാഠം", tajweed: "തജ്‌വീദ്",
             detailed_feedback: "വിശദമായ ഫീഡ്‌ബാക്ക്", done: "പൂർത്തിയായി", progress: "നിങ്ങളുടെ പുരോഗതി", history: "പരിശീലന ചരിത്രം", settings: "ക്രമീകരണങ്ങൾ", dark_mode: "ഡാർക്ക് മോഡ്",
             nav_home: "ഹോം", nav_progress: "പുരോഗതി", nav_history: "ചരിത്രം", nav_settings: "ക്രമീകരണങ്ങൾ", verses: "വരികൾ", verse: "വരി", mic_error: "മൈക്രോഫോൺ ഉപയോഗിക്കാൻ അനുമതിയില്ല.",
-            recording_in_progress: "🔴 റെക്കോർഡിംഗ് നടക്കുന്നു..."
+            recording_in_progress: "🔴 റെക്കോർഡിംഗ് നടക്കുന്നു...",
+            todays_goal: "ഇന്നത്തെ ലക്ഷ്യം", completed: "പൂർത്തിയായി", daily_recommendation: "ഇന്നത്തെ നിർദ്ദേശം", goals_title: "ലക്ഷ്യങ്ങളും പുരോഗതിയും", goals_sub: "തുടർച്ചയായ പരിശീലനത്തിനായി ലക്ഷ്യങ്ങൾ ക്രമീകരിക്കുക.", target_sessions: "പ്രതിദിന ലക്ഷ്യം (സെഷനുകൾ)", save_goals: "ലക്ഷ്യങ്ങൾ സേവ് ചെയ്യുക"
         }
     };
 
-    // --- AUTHENTICATION ---
     const switchAuth = (mode) => {
         if(mode === 'login') {
             document.getElementById('login-form').classList.remove('hidden');
@@ -282,7 +307,7 @@ const app = (() => {
         els.langBtn.textContent = currentLang === 'en' ? 'മലയാളം' : 'English';
         applyLanguage();
         renderSurahList(surahs);
-        updateDashboard(); // Automatically defaults to false (no animation)
+        updateDashboard(); 
         updateDateDisplay();
     };
 
@@ -306,7 +331,6 @@ const app = (() => {
     const navigateTo = (viewId, event = null, isBack = false) => {
         if (event) event.preventDefault();
         
-        // Clean up analysis view if navigating away from it
         if (viewId !== 'analysis-view') {
             stopLoadingAnimation();
         }
@@ -323,7 +347,9 @@ const app = (() => {
         const targetView = document.getElementById(viewId);
         if (targetView) targetView.classList.add('active');
 
-        // Manage Bottom Navigation & Sticky Bar Visibility
+        // SCROLL FIX: Instantly snap to the top when switching views
+        window.scrollTo(0, 0);
+
         if (viewId === 'record-view' || viewId === 'analysis-view' || viewId === 'result-view' || viewId === 'auth-view') {
             if(els.backBtnContainer && viewId !== 'auth-view') els.backBtnContainer.style.display = 'block';
             if (els.mainBottomNav) els.mainBottomNav.style.display = 'none';
@@ -332,7 +358,6 @@ const app = (() => {
             if (els.mainBottomNav) els.mainBottomNav.style.display = 'flex';
         }
 
-        // Specifically toggle the external Record Action Bar
         if (viewId === 'record-view') {
             if (els.recordActionBar) els.recordActionBar.style.display = 'flex';
         } else {
@@ -342,7 +367,6 @@ const app = (() => {
         if (viewId !== currentView) {
             if (['home-view', 'progress-view', 'history-view', 'settings-view'].includes(viewId)) {
                 viewHistory = [viewId]; 
-                // Will call updateDashboard() without 'true', preventing the animation on tab switches
                 if(viewId === 'home-view' || viewId === 'history-view') updateDashboard(); 
                 if(viewId === 'progress-view') { updateDashboard(); updateDateDisplay(); }
             } else if (!isBack) {
@@ -354,21 +378,15 @@ const app = (() => {
 
     const goBack = () => {
         if (viewHistory.length > 1) {
-            viewHistory.pop(); // Remove current view
-            
-            // Back Button FIX: Skip the 'analysis-view' so we don't get stuck in a loading loop
+            viewHistory.pop(); 
             if (viewHistory[viewHistory.length - 1] === 'analysis-view') {
                 viewHistory.pop();
             }
-            
             const previousView = viewHistory[viewHistory.length - 1];
-            
-            // If returning from record or results, reset recording state
             if (currentView === 'result-view' || currentView === 'record-view') {
                 resetRecording();
             }
-            
-            navigateTo(previousView, null, true); // true = isBack 
+            navigateTo(previousView, null, true); 
         }
     };
 
@@ -400,19 +418,14 @@ const app = (() => {
     const selectSurah = async (id) => {
         if(els.initialLoader) els.initialLoader.classList.remove('hidden');
         selectedSurah = surahs.find(s => s.id === id);
-        
         try {
             const res = await fetch(`https://api.alquran.cloud/v1/surah/${id}/quran-uthmani`);
             const data = await res.json();
-            
             const ayahText = data.data.ayahs.map(a => a.text + ` <span style="color:var(--primary);">﴿${toArabicNumeral(a.numberInSurah)}﴾</span>`).join(' &nbsp; ');
             document.getElementById('record-surah-text').innerHTML = ayahText;
-            
             els.recordSurahName.textContent = currentLang === 'en' ? selectedSurah.nameEn : (selectedSurah.nameMl || selectedSurah.nameEn);
             document.getElementById('record-surah-meta').textContent = `${data.data.numberOfAyahs} ${i18n[currentLang].verses}`;
-            
             document.getElementById('practice-bismillah').style.display = (id === 1 || id === 9) ? 'none' : 'block';
-
             resetRecording();
             if(els.initialLoader) els.initialLoader.classList.add('hidden');
             navigateTo('record-view');
@@ -444,7 +457,6 @@ const app = (() => {
         els.btnMic.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`;
         els.recordStatus.textContent = i18n[currentLang].tap_to_start;
         els.recordStatus.classList.add('stopped');
-        
         if (els.recordingPopup) els.recordingPopup.classList.add('hidden');
     };
 
@@ -458,7 +470,6 @@ const app = (() => {
             els.btnMic.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`;
             els.recordStatus.textContent = i18n[currentLang].paused;
             els.recordStatus.classList.add('stopped');
-            
             if (els.recordingPopup) els.recordingPopup.classList.add('hidden');
         } else {
             isRecording = true;
@@ -482,7 +493,6 @@ const app = (() => {
             els.recordStatus.textContent = i18n[currentLang].recording;
             els.recordStatus.classList.remove('stopped');
             recordingTimer = setInterval(() => { seconds++; els.recordTimer.textContent = formatTime(seconds); }, 1000);
-            
             if (els.recordingPopup) els.recordingPopup.classList.remove('hidden');
         }
     };
@@ -494,7 +504,6 @@ const app = (() => {
         steps.forEach(s => s.classList.remove('active', 'done'));
         let currentStep = 0;
         if(steps.length > 0) steps[0].classList.add('active');
-        
         loadingInterval = setInterval(() => {
             if (currentStep < 3 && steps.length > currentStep + 1) {
                 steps[currentStep].classList.replace('active', 'done');
@@ -522,7 +531,6 @@ const app = (() => {
             mediaRecorder.onstop = async () => {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                 
-                // 1. Silent Audio Validation Fix
                 if(els.initialLoader) els.initialLoader.classList.remove('hidden');
                 const hasSound = await checkIfAudioHasSound(audioBlob);
                 if(els.initialLoader) els.initialLoader.classList.add('hidden');
@@ -552,7 +560,6 @@ const app = (() => {
                     stopLoadingAnimation();
                     generateAIResults(aiResult.data);
                     navigateTo('result-view');
-
                 } catch (error) {
                     console.error("Failed to send audio to backend:", error);
                     stopLoadingAnimation();
@@ -659,7 +666,59 @@ const app = (() => {
         }
     };
 
-const updateDashboard = (animate = false) => {
+    const generateDailyRecommendation = () => {
+        if (!surahs.length) return;
+        
+        const recNameEl = document.getElementById('rec-surah-name');
+        const recReasonEl = document.getElementById('rec-surah-reason');
+        const recCard = document.getElementById('rec-card');
+        
+        // 1. Look for poor performance in recent history
+        const weakSession = appData.history.find(h => h.score < 85);
+        let recommendedSurah;
+        let reasonTextEn = "";
+        let reasonTextMl = "";
+
+        if (weakSession) {
+            recommendedSurah = surahs.find(s => s.id === weakSession.surahId);
+            reasonTextEn = `Improve your ${weakSession.score}% accuracy`;
+            reasonTextMl = `നിങ്ങളുടെ ${weakSession.score}% കൃത്യത മെച്ചപ്പെടുത്തുക`;
+        } else {
+            // 2. Pick a "Surah of the Day" based on the calendar date
+            const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
+            const surahIndex = dayOfYear % surahs.length;
+            recommendedSurah = surahs[surahIndex];
+            reasonTextEn = "Daily suggested practice";
+            reasonTextMl = "ഇന്നത്തെ പരിശീലന നിർദ്ദേശം";
+        }
+
+        if (recommendedSurah && recNameEl && recReasonEl && recCard) {
+            const displayName = currentLang === 'en' ? recommendedSurah.nameEn : (recommendedSurah.nameMl || recommendedSurah.nameEn);
+            recNameEl.textContent = displayName;
+            recReasonEl.textContent = currentLang === 'en' ? reasonTextEn : reasonTextMl;
+            recCard.onclick = () => selectSurah(recommendedSurah.id);
+        }
+    };
+
+    const updateDashboard = (animate = false) => {
+        // --- DYNAMIC GOALS LOGIC ---
+        const todayStr = new Date().toDateString();
+        const todaySessions = appData.history.filter(h => new Date(h.date).toDateString() === todayStr).length;
+        const targetSessions = appData.goals ? appData.goals.targetSessions : 5;
+        const progressPct = Math.min(Math.round((todaySessions / targetSessions) * 100), 100);
+
+        const goalTextEl = document.getElementById('goal-progress-text');
+        const goalBarEl = document.getElementById('goal-bar-fill');
+        const goalRingEl = document.getElementById('goal-ring');
+        const goalRingTextEl = document.getElementById('goal-ring-text');
+
+        if (goalTextEl) goalTextEl.innerHTML = `${todaySessions} / ${targetSessions} <span class="text-secondary" style="font-size:0.8rem; font-weight:normal;">Sessions</span>`;
+        if (goalBarEl) goalBarEl.style.width = `${progressPct}%`;
+        if (goalRingTextEl) goalRingTextEl.textContent = `${progressPct}%`;
+        if (goalRingEl) goalRingEl.style.background = `conic-gradient(var(--primary) ${progressPct}%, rgba(255,255,255,0.05) 0)`;
+
+        generateDailyRecommendation();
+
         const totalSessions = appData.history.length;
         let avgScore = 0;
         let streak = 0;
@@ -673,15 +732,12 @@ const updateDashboard = (animate = false) => {
 
         const statValues = document.querySelectorAll('.stat-value');
         if(statValues.length >= 3) {
-            // Check if we should animate AND if it hasn't already animated
             if (animate && !hasAnimatedDashboard) {
-                hasAnimatedDashboard = true; // Mark that animation has played
-                
+                hasAnimatedDashboard = true; 
                 animateNumber(statValues[0], 0, streak, 1200, ""); 
                 animateNumber(statValues[1], 0, avgScore, 1200, "%"); 
                 animateNumber(statValues[2], 0, totalSessions, 1200, ""); 
             } else {
-                // Instantly show numbers (for tab switches or background Firebase syncs)
                 statValues[0].textContent = streak;
                 statValues[1].textContent = `${avgScore}%`;
                 statValues[2].textContent = totalSessions;
@@ -711,7 +767,6 @@ const updateDashboard = (animate = false) => {
         renderProgressChart();
     };
 
-    // HISTORY SEARCH FILTER
     const filterHistory = () => {
         if(!els.historySearch) return;
         const query = els.historySearch.value.toLowerCase();
@@ -773,7 +828,6 @@ const updateDashboard = (animate = false) => {
 
     const updateDateDisplay = () => {
         if (!els.currentViewDate || !els.progressDetails) return;
-
         const isToday = new Date().toDateString() === currentViewDate.toDateString();
         els.currentViewDate.textContent = isToday ? (currentLang === 'en' ? 'Today' : 'ഇന്ന്') : currentViewDate.toLocaleDateString(currentLang === 'en' ? 'en-US' : 'ml-IN', { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -810,7 +864,6 @@ const updateDashboard = (animate = false) => {
         const targetDate = new Date(currentViewDate);
         targetDate.setDate(targetDate.getDate() + days);
         targetDate.setHours(0,0,0,0);
-
         const today = new Date();
         today.setHours(0,0,0,0);
 
@@ -845,8 +898,8 @@ const updateDashboard = (animate = false) => {
 
     return {
         navigateTo, goBack, filterSurahs, filterHistory, filterProgress, selectSurah, 
-        toggleRecording, cancelRecording, finishRecording, saveProfile,
+        toggleRecording, cancelRecording, finishRecording, saveProfile, saveGoals,
         toggleLanguage, toggleTheme, viewPastSession, switchAuth, googleLogin,
-        login, signup, logout, changeDate, selectCustomDate
+        login, signup, logout, changeDate, selectCustomDate, switchProgressTab
     };
 })();

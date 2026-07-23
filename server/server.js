@@ -9,7 +9,7 @@ require('dotenv').config();
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenerativeAI, SchemaType } = require('@google/generative-ai');
 const { GoogleAIFileManager } = require('@google/generative-ai/server');
 
 const app = express();
@@ -32,6 +32,7 @@ if (!apiKey) {
 const genAI = new GoogleGenerativeAI(apiKey);
 const fileManager = new GoogleAIFileManager(apiKey);
 
+// Models prioritized for audio phonetics and high-accuracy analysis
 const FALLBACK_MODELS = [
     "gemini-2.5-flash",
     "gemini-3-flash",
@@ -40,19 +41,47 @@ const FALLBACK_MODELS = [
     "gemini-2.5-flash-lite"
 ];
 
-// Helper: Clean and normalize audio using FFmpeg for maximum AI phonetic clarity
+// Strict JSON Schema Enforcement
+const responseSchema = {
+    type: SchemaType.OBJECT,
+    properties: {
+        overallScore: { type: SchemaType.INTEGER, description: "Overall accuracy score from 0 to 100" },
+        pronunciation: { type: SchemaType.INTEGER, description: "Pronunciation score from 0 to 100" },
+        memorization: { type: SchemaType.INTEGER, description: "Memorization accuracy score from 0 to 100" },
+        tajweed: { type: SchemaType.INTEGER, description: "Tajweed precision score from 0 to 100" },
+        feedback: {
+            type: SchemaType.ARRAY,
+            items: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    type: { type: SchemaType.STRING, enum: ["perfect", "warning", "error"] },
+                    verse: { type: SchemaType.STRING, description: "e.g., 'Verse 1'" },
+                    ar: { type: SchemaType.STRING, description: "Specific Arabic word or phrase flagged" },
+                    msgEn: { type: SchemaType.STRING, description: "Detailed feedback in English" },
+                    msgMl: { type: SchemaType.STRING, description: "Detailed feedback in Malayalam" },
+                    actionEn: { type: SchemaType.STRING, description: "How to fix in English" },
+                    actionMl: { type: SchemaType.STRING, description: "How to fix in Malayalam" }
+                },
+                required: ["type", "verse", "msgEn", "msgMl"]
+            }
+        }
+    },
+    required: ["overallScore", "pronunciation", "memorization", "tajweed", "feedback"]
+};
+
+// Helper: Clean and normalize audio using FFmpeg
 async function normalizeAudio(inputPath) {
     const outputPath = path.join('uploads', `processed_${Date.now()}.wav`);
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         ffmpeg(inputPath)
             .toFormat('wav')
             .audioChannels(1) // Mono
-            .audioFrequency(16000) // 16kHz sample rate optimal for speech/phonetics
-            .audioFilter('highpass=f=200, lowpass=f=3000') // Strip background rumble and hiss
+            .audioFrequency(16000) // 16kHz optimal speech frequency
+            .audioFilter('highpass=f=200, lowpass=f=3000') // Noise reduction
             .on('end', () => resolve(outputPath))
             .on('error', (err) => {
                 console.warn("⚠️ FFmpeg processing failed, falling back to raw audio:", err);
-                resolve(inputPath); // Fallback to raw file if ffmpeg fails
+                resolve(inputPath);
             })
             .save(outputPath);
     });
@@ -84,55 +113,46 @@ app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
         const surahId = req.body.surahId || 1;
         const language = req.body.language || 'en';
 
-        console.log(`\n🎙️ Processing Crystal-Clear Audio for Surah ID: ${surahId}`);
+        console.log(`\n🎙️ Processing High-Accuracy Audio for Surah ID: ${surahId}`);
 
-        // Step 1: Normalize and clean audio via FFmpeg
+        // Step 1: Normalize audio via FFmpeg
         processedAudioPath = await normalizeAudio(rawAudioPath);
 
-        // Step 2: Fetch Ground Truth Reference Text
+        // Step 2: Fetch Uthmani Ground Truth
         const groundTruthText = await fetchSurahReferenceText(surahId);
 
-        // Step 3: Upload cleaned audio to Gemini
+        // Step 3: Upload audio to Gemini File Manager
         uploadedFileRef = await fileManager.uploadFile(processedAudioPath, {
             mimeType: "audio/wav",
-            displayName: `Clean_Recitation_Surah_${surahId}`,
+            displayName: `Recitation_Surah_${surahId}`,
         });
 
+        // Step 4: Chain-of-Thought (CoT) Prompting
         const promptText = `
-            You are an elite, world-class Master Quran Tajweed and Qira'at Coach.
-            Listen carefully to the user's audio recitation.
+You are an expert Qari, Master Tajweed Evaluator, and Hafiz.
+Analyze the user's recitation audio against the official Uthmani ground truth text below.
 
-            GROUND TRUTH REFERENCE TEXT (Official Uthmani Text):
-            ${groundTruthText}
+### OFFICIAL UTHMANI GROUND TRUTH TEXT:
+${groundTruthText}
 
-            INSTRUCTIONS FOR EVALUATION:
-            1. Compare the audio against the Ground Truth Reference Text to check word-for-word memorization (Hifz) accuracy.
-            2. Evaluate precise Tajweed rules (such as Makharij al-Huruf, Ghunnah timing, Qalqalah bounces, and Madd elongation). Pay explicit attention to heavy letters (ص, ض, ط, ظ) vs light counterparts.
-            3. Score accurately from 0-100 across overallScore, pronunciation, memorization, and tajweed.
-            
-            ${language === 'ml' 
-                ? 'PROVIDE ALL FEEDBACK (msgMl, actionMl) IN CLEAR, ENCOURAGING, AND FRIENDLY MALAYALAM WITH A WARM KERALA LOCAL FLAVOR.' 
-                : 'Provide feedback clearly, professionally, and constructively in English.'}
+### STEP-BY-STEP EVALUATION METHOD:
+1. LISTEN & TRANSCRIBE: Listen to the audio and mentally align each phrase verse-by-verse with the ground truth text above.
+2. HIFZ (MEMORIZATION): Identify skipped words, misread diacritics (Harakat), or omitted verses.
+3. MAKHARIJ (PRONUNCIATION): Check phonetic accuracy of throat and heavy/light letters (e.g. ح vs ه, ع vs ا, ص vs س, ط vs ت).
+4. TAJWEED RULES:
+   - Madd (Elongation): Verify correct counts (2, 4, 6 Harakat).
+   - Ghunnah & Nasalization: Check duration on Noon/Meem Mushaddad, Ikhfa, and Idgham.
+   - Qalqalah: Check bouncing sound on Qaf, Taa, Ba, Jeem, Dal.
+5. FAIR DEDUCTIONS:
+   - Start at 100%.
+   - Deduct 5-10 points per clear error.
+   - Do NOT penalize natural pauses between verses or minor dialect variations.
 
-            Respond ONLY with a valid JSON object matching this exact structure, with no markdown code blocks outside:
-            {
-                "overallScore": number,
-                "pronunciation": number,
-                "memorization": number,
-                "tajweed": number,
-                "feedback": [
-                    { 
-                        "type": "perfect" | "warning" | "error", 
-                        "verse": "e.g. Verse 2", 
-                        "msgEn": "Detailed evaluation.", 
-                        "msgMl": "വിശദമായ വിവരണം മലയാളത്തിൽ.", 
-                        "ar": "The specific Arabic word",
-                        "actionEn": "Actionable advice.", 
-                        "actionMl": "എങ്ങനെ തിരുത്തണം എന്നതിനുള്ള നിർദ്ദേശം." 
-                    }
-                ]
-            }
-        `;
+### FEEDBACK LANGUAGE REQUIREMENT:
+${language === 'ml' 
+    ? 'Provide msgMl and actionMl in natural, clear Malayalam (മലയാളം).' 
+    : 'Provide msgEn and actionEn in concise, encouraging English.'}
+`;
 
         let parsedData = null;
         let lastError = null;
@@ -144,20 +164,27 @@ app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
                 
                 const result = await model.generateContent({
                     contents: [
-                        { role: "user", parts: [
-                            { fileData: { mimeType: uploadedFileRef.file.mimeType, fileUri: uploadedFileRef.file.uri } },
-                            { text: promptText }
-                        ]}
+                        { 
+                            role: "user", 
+                            parts: [
+                                { fileData: { mimeType: uploadedFileRef.file.mimeType, fileUri: uploadedFileRef.file.uri } },
+                                { text: promptText }
+                            ]
+                        }
                     ],
-                    generationConfig: { responseMimeType: "application/json" }
+                    generationConfig: { 
+                        responseMimeType: "application/json",
+                        responseSchema: responseSchema,
+                        temperature: 0.1 // Stops score volatility
+                    }
                 });
 
                 const rawText = result.response.text();
                 parsedData = JSON.parse(rawText);
-                console.log(`✅ Success with model: ${modelName}`);
+                console.log(`✅ Evaluation success with model: ${modelName}`);
                 break;
             } catch (err) {
-                console.warn(`⚠️ Model ${modelName} failed. Trying fallback...`);
+                console.warn(`⚠️ Model ${modelName} failed. Trying fallback...`, err.message);
                 lastError = err;
             }
         }
