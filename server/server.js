@@ -31,10 +31,10 @@ if (!apiKey) {
 const genAI = new GoogleGenerativeAI(apiKey);
 
 const FALLBACK_MODELS = [
+    "gemini-3.1-flash-lite",
     "gemini-2.5-flash",
     "gemini-3-flash",
     "gemini-2-flash",
-    "gemini-3.1-flash-lite",
     "gemini-2.5-flash-lite"
 ];
 
@@ -113,24 +113,33 @@ app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
         const base64Audio = audioBuffer.toString('base64');
         const groundTruthText = await fetchSurahReferenceText(surahId);
 
-        // UPDATE: Strict Phrasing Rules Added
+        // MAXIMUM ACCURACY PROMPT
         const promptText = `
-You are an expert Qari and Master Tajweed Evaluator. 
-Listen carefully to the user's recitation audio.
+You are a highly strict, elite Master Qari and Tajweed Examiner. 
+Your goal is 100% flawless error detection. Do NOT hallucinate errors, and do NOT ignore subtle mistakes.
 
 ### REFERENCE TEXT FOR SURAH ID ${surahId}:
 ${groundTruthText}
 
-### CRITICAL ERROR PHRASING RULES (MANDATORY):
-You must NEVER state that a wrong letter exists inside the correct word.
-- CORRECT PHRASING: "You accidentally pronounced the letter 'ظ' instead of the correct letter 'ح' in the word 'الْمُفْلِحُونَ'."
-- WRONG PHRASING: "Incorrect articulation of the letter 'ظ' in 'الْمُفْلِحُونَ'." (This implies 'ظ' belongs in the word, which is a hallucination).
-Always clarify the [Wrong Spoken Letter] vs the [Actual Correct Letter].
+### MANDATORY CHAIN-OF-THOUGHT EVALUATION:
+To achieve maximum accuracy, you MUST perform this mental check before scoring:
+1. AUDIO ISOLATION: Listen to the audio. Which specific verses did the user actually attempt? Ignore the rest of the text.
+2. LITERAL TRANSCRIPTION: Mentally transcribe exactly what the user pronounced. 
+3. WORD-BY-WORD ALIGNMENT: Compare your literal transcription to the Reference Text. 
+   - Did they mix 'س' (Seen) and 'ص' (Saad)?
+   - Did they mix 'ح' (Haa) and 'ه' (Haa)?
+   - Did they mix 'ذ' (Thal) and 'ز' (Zay)?
+   - Did they miss a Madd (elongation) or Ghunnah (nasalization) indicated by the Tajweed markup?
 
-### EVALUATION RULES:
-1. PARTIAL RECITATION HANDLING: The user MAY NOT recite the entire Surah. Identify WHICH verses they actually attempted. Grade ONLY the verses they recited. DO NOT score 0% for unattempted verses.
-2. PRONUNCIATION & TAJWEED: Evaluate Makharij, Madd, Ghunnah, and Qalqalah based on the Tajweed Markup.
-3. SCORING: Calculate realistic scores (0-100) based on accuracy of the spoken verses. Start at 100 and deduct points strictly for actual errors made.
+### CRITICAL ERROR PHRASING RULES:
+When reporting an error, you MUST state exactly what the user did wrong.
+- CORRECT PHRASING: "You pronounced the letter 'ه' instead of the correct letter 'ح' in the word 'الرَّحِيمِ'."
+- NEVER state that a wrong letter exists inside the reference word itself.
+
+### SCORING SYSTEM:
+- Start at 100%.
+- Deduct 5-10 points for every distinct pronunciation, memorization, or Tajweed error found in the *attempted* audio.
+- DO NOT penalize for unread verses.
 
 ### LANGUAGE: 
 ${language === 'ml' 
@@ -159,7 +168,7 @@ ${language === 'ml'
                     generationConfig: { 
                         responseMimeType: "application/json",
                         responseSchema: responseSchema,
-                        temperature: 0.1
+                        temperature: 0.0 // Set to absolute zero for strict, deterministic accuracy
                     }
                 });
 
