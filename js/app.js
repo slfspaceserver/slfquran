@@ -1,6 +1,6 @@
 /**
  * Quran AI Coach - Complete Updated JS
- * Fixes: INSTANT Continue Practice Bookmark via LocalStorage Caching
+ * Fixes: Prevented Double Animation on App Load, Added Animation Canceler
  */
 
 const firebaseConfig = {
@@ -34,6 +34,10 @@ const app = (() => {
     let audioChunks = [];
     let hasAnimatedDashboard = false; 
     let currentViewDate = new Date();
+
+    // Animation Trackers to prevent overlapping animations
+    let goalAnimFrame = null;
+    let goalAnimTimeout = null;
 
     let appData = {
         history: [],
@@ -166,7 +170,11 @@ const app = (() => {
         window.requestAnimationFrame(step);
     };
 
+    // FIXED: Cancels previous animation to prevent overlap/double-rendering
     const animateGoal = (textEl, barEl, ringEl, endPct, duration) => {
+        if (goalAnimFrame) cancelAnimationFrame(goalAnimFrame);
+        if (goalAnimTimeout) clearTimeout(goalAnimTimeout);
+
         let startTimestamp = null;
         const step = (timestamp) => {
             if (!startTimestamp) startTimestamp = timestamp;
@@ -176,17 +184,17 @@ const app = (() => {
             if (textEl) textEl.textContent = currentPct + "%";
             if (ringEl) ringEl.style.background = `conic-gradient(var(--primary) ${currentPct}%, rgba(255,255,255,0.05) 0)`;
             
-            if (progress < 1) window.requestAnimationFrame(step);
+            if (progress < 1) goalAnimFrame = window.requestAnimationFrame(step);
         };
         if (barEl) { 
             barEl.style.transition = 'none'; 
             barEl.style.width = '0%'; 
-            setTimeout(() => { 
+            goalAnimTimeout = setTimeout(() => { 
                 barEl.style.transition = 'width 0.5s ease'; 
                 barEl.style.width = `${endPct}%`; 
             }, 50); 
         }
-        window.requestAnimationFrame(step);
+        goalAnimFrame = window.requestAnimationFrame(step);
     };
 
     const init = () => {
@@ -195,20 +203,19 @@ const app = (() => {
         
         let localDataLoaded = false;
 
-        // LOAD HISTORY CACHE
         const cachedHistory = localStorage.getItem('quranCachedHistory');
         if (cachedHistory) {
             try { appData.history = JSON.parse(cachedHistory); localDataLoaded = true; } catch(e) {}
         }
 
-        // LOAD BOOKMARK CACHE (INSTANT LOAD)
         const cachedBookmark = localStorage.getItem('quranCachedBookmark');
         if (cachedBookmark && cachedBookmark !== "undefined" && cachedBookmark !== "null") {
             try { appData.bookmark = JSON.parse(cachedBookmark); localDataLoaded = true; } catch(e) {}
         }
 
         if (localDataLoaded) {
-            updateDashboard(true); 
+            // FIXED: Loads cache silently (false) so it doesn't double-animate before Firebase loads
+            updateDashboard(false); 
         }
         
         auth.onAuthStateChanged(user => {
@@ -277,7 +284,6 @@ const app = (() => {
         localStorage.setItem(`quranTheme_${currentUser.uid}`, JSON.stringify({ theme: appData.theme }));
         localStorage.setItem('quranCachedHistory', JSON.stringify(appData.history));
         
-        // INSTANT CACHE SAVING FOR BOOKMARK
         if (appData.bookmark) {
             localStorage.setItem('quranCachedBookmark', JSON.stringify(appData.bookmark));
         }
@@ -894,7 +900,6 @@ const app = (() => {
 
     const updateDashboard = (animate = false) => {
         
-        // INSTANT BOOKMARK RENDER
         const bookmarkSection = document.getElementById('continue-practice-section');
         const bookmarkName = document.getElementById('bookmark-surah-name');
         
@@ -927,7 +932,6 @@ const app = (() => {
 
         if (goalTextEl) goalTextEl.innerHTML = `${todaySessions} / ${targetSessions} <span class="text-secondary" style="font-size:0.8rem; font-weight:normal;">Sessions</span>`;
         
-        // INSTANT GOAL ANIMATION
         if (animate) {
             animateGoal(goalRingTextEl, goalBarEl, goalRingEl, progressPct, 1200);
         } else {
