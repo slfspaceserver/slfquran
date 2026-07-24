@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="css/style.css">
     <style>
         body.lang-ml { font-family: 'Noto Sans Malayalam', 'Inter', sans-serif; }
-        .lang-toggle { background: rgba(15, 174, 150, 0.1); color: var(--primary); border: 1px solid var(--primary); padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+        .lang-toggle { background: rgba(15, 174, 150, 0.1); color: var(--primary); border: 1px solid var(--primary); padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
         .lang-toggle:hover { background: var(--primary); color: white; }
     </style>
 </head>
@@ -35,14 +35,14 @@
                 <div style="display: flex; align-items: center;">
                     <!-- Profile Indicator -->
                     <div class="profile-pill" id="header-profile-pill" onclick="app.navigateTo('profile-view')">
-                        <div id="header-avatar" style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #000;">U</div>
-                        <span id="header-username-display" style="font-size: 0.85rem; font-weight: 600; color: var(--text);">Profile</span>
+                        <div id="header-avatar" style="width: 28px; height: 28px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #000; font-size: 0.85rem;">U</div>
+                        <span id="header-username-display" style="font-size: 0.8rem; font-weight: 600; color: var(--text);">Profile</span>
                     </div>
 
                     <!-- Back Button (Hidden on Home) -->
                     <div id="back-btn-container" style="display: none;">
                         <button class="icon-btn" onclick="app.goBack()">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="19" y1="12" x2="5" y2="12"></line>
                                 <polyline points="12 19 5 12 12 5"></polyline>
                             </svg>
@@ -51,7 +51,7 @@
                 </div>
 
                 <!-- Right Side: Language Toggle -->
-                <div style="display: flex; gap: 10px; align-items: center;">
+                <div style="display: flex; gap: 8px; align-items: center;">
                     <button class="lang-toggle" onclick="app.toggleLanguage()" id="lang-btn">മലയാളം</button>
                 </div>
             </div>
@@ -61,10 +61,10 @@
             <!-- Auth View -->
             <div id="auth-view" class="view active">
                 <div class="auth-card glass-card">
-                    <div style="display:flex; justify-content:center; margin-bottom: 1rem; margin-top: 30px;">
-                        <img src="img/logo-slf-quran.png" alt="Logo" style="width: 130px; height: 56px; object-fit: contain;">
+                    <div style="display:flex; justify-content:center; margin-bottom: 1rem; margin-top: 20px;">
+                        <img src="img/logo-slf-quran.png" alt="Logo" style="width: 120px; height: 50px; object-fit: contain;">
                     </div>
-                    <p style="color: var(--text-sec); margin-bottom: 1.5rem; font-size: 0.85rem;">Sign in to save your practice history</p>
+                    <p style="color: var(--text-sec); margin-bottom: 1.25rem; font-size: 0.8rem;">Sign in to save your practice history</p>
                     
                     <div class="auth-toggle mb-4">
                         <button class="auth-tab active" onclick="app.switchAuth('login')" id="tab-login">Login</button>
@@ -84,14 +84,14 @@
                         <button onclick="app.signup()" class="auth-btn-primary">Create Account</button>
                     </div>
 
-                    <div style="margin: 1.5rem 0; display:flex; align-items:center; color:var(--text-sec); font-size:0.8rem;">
+                    <div style="margin: 1.25rem 0; display:flex; align-items:center; color:var(--text-sec); font-size:0.75rem;">
                         <div style="flex:1; height:1px; background:rgba(255,255,255,0.1);"></div>
-                        <span style="padding: 0 10px;">OR</span>
+                        <span style="padding: 0 8px;">OR</span>
                         <div style="flex:1; height:1px; background:rgba(255,255,255,0.1);"></div>
                     </div>
 
                     <button onclick="app.googleLogin()" class="auth-btn-google">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="margin-right:8px;"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="margin-right:8px;"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
                         Continue with Google
                     </button>
                 </div>
@@ -100,12 +100,12 @@
             <!-- VIEW: HOME -->
             <section id="home-view" class="view">
                 
-                <!-- Logo (Only on Home Page scrollable area) -->
-                <div style="display: flex; justify-content: center; padding-bottom: 20px; padding-top: 10px;">
-                    <img src="https://raw.githubusercontent.com/slfspaceserver/slfquran/main/img/logo-slf-quran.png" alt="Logo" style="height: 45px; object-fit: contain;">
+                <!-- Logo -->
+                <div style="display: flex; justify-content: center; padding-bottom: 15px; padding-top: 5px;">
+                    <img src="https://raw.githubusercontent.com/slfspaceserver/slfquran/main/img/logo-slf-quran.png" alt="Logo" style="height: 34px; object-fit: contain;">
                 </div>
 
-                <!-- 3-Card Row Stats Grid (Restored) -->
+                <!-- 3-Card Row Stats Grid -->
                 <div class="stats-grid">
                     <div class="stat-card glass-card">
                         <div class="stat-icon text-accent">🔥</div>
@@ -127,7 +127,7 @@
                 <!-- Wide Button Action -->
                 <div class="action-section">
                     <button class="btn btn-primary btn-large btn-block" onclick="app.navigateTo('surah-view')">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
                         <span data-i18n="start_practice">Start Practice</span>
                     </button>
                 </div>
@@ -137,15 +137,15 @@
                     <div class="section-header">
                         <h2 data-i18n="continue_practice">Continue Practice</h2>
                     </div>
-                    <div class="glass-card mb-4 border-accent" onclick="app.resumeBookmark()" style="display:flex; justify-content:space-between; align-items:center; padding:15px; cursor:pointer; transition: transform 0.2s;">
-                        <div style="display:flex; align-items:center; gap:12px;">
-                            <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(255, 209, 102, 0.1); color: var(--accent); border-radius: var(--radius-sm); font-weight: 600;">🔖</div>
+                    <div class="glass-card mb-4 border-accent" onclick="app.resumeBookmark()" style="display:flex; justify-content:space-between; align-items:center; padding:12px; cursor:pointer; transition: transform 0.2s;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: rgba(255, 209, 102, 0.1); color: var(--accent); border-radius: var(--radius-sm); font-weight: 600; font-size: 0.85rem;">🔖</div>
                             <div>
-                                <p style="font-size:0.75rem; color:var(--text-sec);" data-i18n="last_recited">Last Recited</p>
-                                <h3 id="bookmark-surah-name" style="font-size:0.95rem; font-weight:600;">Loading...</h3>
+                                <p style="font-size:0.7rem; color:var(--text-sec);" data-i18n="last_recited">Last Recited</p>
+                                <h3 id="bookmark-surah-name" style="font-size:0.85rem; font-weight:600;">Loading...</h3>
                             </div>
                         </div>
-                        <span class="text-primary">▶</span>
+                        <span class="text-primary" style="font-size: 0.8rem;">▶</span>
                     </div>
                 </div>
                 
@@ -153,15 +153,15 @@
                 <div class="section-header">
                     <h2 data-i18n="todays_goal">Today's Goal</h2>
                 </div>
-                <div class="glass-card mb-4" onclick="app.navigateTo('goal-view')" style="cursor:pointer; display: flex; align-items: center; gap: 1rem; transition: transform 0.2s;">
-                    <div id="goal-ring" style="width: 55px; height: 55px; border-radius: 50%; background: conic-gradient(var(--primary) 0%, rgba(255,255,255,0.05) 0); display: flex; align-items: center; justify-content: center; transition: background 0.5s ease;">
-                        <span id="goal-ring-text" style="width: 43px; height: 43px; background: var(--card); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">0%</span>
+                <div class="glass-card mb-4" onclick="app.navigateTo('goal-view')" style="cursor:pointer; display: flex; align-items: center; gap: 0.85rem; transition: transform 0.2s;">
+                    <div id="goal-ring" style="width: 45px; height: 45px; border-radius: 50%; background: conic-gradient(var(--primary) 0%, rgba(255,255,255,0.05) 0); display: flex; align-items: center; justify-content: center; transition: background 0.5s ease;">
+                        <span id="goal-ring-text" style="width: 35px; height: 35px; background: var(--card); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700;">0%</span>
                     </div>
                     <div style="flex: 1;">
-                        <h3 id="goal-progress-text" style="font-size: 1rem; margin-bottom: 2px;">0 / 5 <span class="text-secondary" style="font-size:0.8rem; font-weight:normal;">Sessions</span></h3>
-                        <p class="text-secondary" style="font-size:0.75rem; margin-bottom:6px;" data-i18n="completed">Completed</p>
-                        <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;">
-                            <div id="goal-bar-fill" style="height: 100%; background: var(--primary); width: 0%; border-radius: 3px; transition: width 0.5s ease;"></div>
+                        <h3 id="goal-progress-text" style="font-size: 0.9rem; margin-bottom: 2px;">0 / 5 <span class="text-secondary" style="font-size:0.75rem; font-weight:normal;">Sessions</span></h3>
+                        <p class="text-secondary" style="font-size:0.7rem; margin-bottom:6px;" data-i18n="completed">Completed</p>
+                        <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden;">
+                            <div id="goal-bar-fill" style="height: 100%; background: var(--primary); width: 0%; border-radius: 2px; transition: width 0.5s ease;"></div>
                         </div>
                     </div>
                 </div>
@@ -173,7 +173,7 @@
                     </div>
                     <div class="recent-card glass-card" onclick="app.navigateTo('surah-view')">
                         <div class="recent-info">
-                            <p class="text-secondary p-2">No practice history yet.</p>
+                            <p class="text-secondary" style="padding: 4px;">No practice history yet.</p>
                         </div>
                     </div>
                 </div>
@@ -182,15 +182,15 @@
                 <div class="section-header mt-4">
                     <h2 data-i18n="daily_recommendation">Daily Recommendation</h2>
                 </div>
-                <div id="rec-card" class="glass-card mb-4" style="display:flex; justify-content:space-between; align-items:center; padding:15px; cursor:pointer; transition: transform 0.2s;">
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(255,255,255,0.05); color: var(--accent); border-radius: var(--radius-sm); font-weight: 600;">⭐</div>
+                <div id="rec-card" class="glass-card mb-4" style="display:flex; justify-content:space-between; align-items:center; padding:12px; cursor:pointer; transition: transform 0.2s;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: rgba(255,255,255,0.05); color: var(--accent); border-radius: var(--radius-sm); font-weight: 600; font-size: 0.85rem;">⭐</div>
                         <div>
-                            <h3 id="rec-surah-name" style="font-size:0.95rem; font-weight:600;">Loading...</h3>
-                            <p id="rec-surah-reason" style="font-size:0.75rem; color:var(--text-sec);">...</p>
+                            <h3 id="rec-surah-name" style="font-size:0.85rem; font-weight:600;">Loading...</h3>
+                            <p id="rec-surah-reason" style="font-size:0.7rem; color:var(--text-sec);">...</p>
                         </div>
                     </div>
-                    <span class="text-secondary">➔</span>
+                    <span class="text-secondary" style="font-size: 0.8rem;">➔</span>
                 </div>
 
                 <div class="disclaimer-card glass-card">
@@ -210,20 +210,20 @@
 
             <!-- VIEW: RECORD & READ -->
             <section id="record-view" class="view" style="padding: 0; position: relative;">
-                <div class="record-header" style="position: sticky; top: 0; background: var(--bg); z-index: 10; padding: 1.5rem; text-align: center; border-bottom: var(--glass-border);">
-                    <h2 id="record-surah-name">Al-Fatihah</h2>
-                    <p class="text-secondary" id="record-surah-meta" style="font-size:0.8rem; margin-top:5px;">Loading...</p>
+                <div class="record-header" style="position: sticky; top: 0; background: var(--bg); z-index: 10; padding: 1.25rem; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <h2 id="record-surah-name" style="font-size: 1.1rem;">Al-Fatihah</h2>
+                    <p class="text-secondary" id="record-surah-meta" style="font-size:0.75rem; margin-top:4px;">Loading...</p>
                 </div>
-                <div id="practice-bismillah" style="text-align:center; font-family:var(--font-arabic); font-size:1.5rem; margin-top:1.5rem; color:var(--text);">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
+                <div id="practice-bismillah" style="text-align:center; font-family:var(--font-arabic); font-size:1.3rem; margin-top:1.5rem; color:var(--text);">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
                 <div id="record-surah-text" class="surah-text-container"></div>
-                <div style="height: 180px;"></div>
+                <div style="height: 140px;"></div>
             </section>
 
             <!-- VIEW: ANALYSIS -->
             <section id="analysis-view" class="view">
                 <div class="analysis-container">
                     <div class="loader-circular"></div>
-                    <h2 data-i18n="analyzing">Analyzing your recitation...</h2>
+                    <h2 data-i18n="analyzing" style="font-size: 1.1rem;">Analyzing your recitation...</h2>
                     <div class="analysis-steps">
                         <div class="step active" id="step-1" data-i18n="step_1">Processing audio...</div>
                         <div class="step" id="step-2" data-i18n="step_2">Converting speech to text...</div>
@@ -236,15 +236,15 @@
             <!-- VIEW: RESULTS -->
             <section id="result-view" class="view">
                 <div class="result-header text-center">
-                    <h2 data-i18n="analysis_complete">Analysis Complete</h2>
-                    <p id="result-surah-name" class="text-accent">Al-Fatihah</p>
+                    <h2 data-i18n="analysis_complete" style="font-size: 1.1rem;">Analysis Complete</h2>
+                    <p id="result-surah-name" class="text-accent" style="font-size: 0.85rem;">Al-Fatihah</p>
                 </div>
-                <div class="overall-score-container glass-card mb-4" style="display:flex; justify-content:space-between; align-items:center; padding:1.5rem; flex-direction:row;">
+                <div class="overall-score-container glass-card mb-4">
                     <div style="text-align:left;">
-                        <h3 data-i18n="overall_accuracy" style="font-size:1.2rem; margin-bottom:5px;">Overall Accuracy</h3>
-                        <p class="text-secondary" style="font-size:0.85rem;">Session Score</p>
+                        <h3 data-i18n="overall_accuracy" style="font-size:1rem; margin-bottom:2px;">Overall Accuracy</h3>
+                        <p class="text-secondary" style="font-size:0.75rem;">Session Score</p>
                     </div>
-                    <div class="circular-chart primary" id="chart-overall" style="margin:0; width: 80px; height: 80px;">
+                    <div class="circular-chart primary" id="chart-overall">
                         <svg viewBox="0 0 36 36" class="circular-svg">
                             <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
                             <path class="circle-value" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
@@ -270,7 +270,7 @@
                     </div>
                 </div>
                 <div class="detailed-feedback mt-4">
-                    <h3 data-i18n="detailed_feedback">Detailed Feedback</h3>
+                    <h3 data-i18n="detailed_feedback" style="font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">Detailed Feedback</h3>
                     <div class="feedback-list" id="feedback-list"></div>
                 </div>
                 <button class="btn btn-primary btn-block mt-4" onclick="app.navigateTo('home-view')" data-i18n="done">Done</button>
@@ -280,24 +280,22 @@
             <section id="progress-view" class="view">
                 <div class="section-header"><h2 data-i18n="progress">Your Progress</h2></div>
                 
-                <!-- ADDED: Functional Tabs -->
-                <div class="progress-tabs mb-4" style="display: flex; background: var(--card); border: var(--glass-border); border-radius: 30px; padding: 4px;">
-                    <div class="ptab active" id="ptab-overview" onclick="app.switchProgressTab('overview')" style="flex: 1; text-align: center; padding: 10px 0; border-radius: 20px; font-size: 0.85rem; color: var(--text-sec); cursor: pointer; transition: 0.2s;">Overview</div>
-                    <div class="ptab" id="ptab-accuracy" onclick="app.switchProgressTab('accuracy')" style="flex: 1; text-align: center; padding: 10px 0; border-radius: 20px; font-size: 0.85rem; color: var(--text-sec); cursor: pointer; transition: 0.2s;">Accuracy</div>
-                    <div class="ptab" id="ptab-streak" onclick="app.switchProgressTab('streak')" style="flex: 1; text-align: center; padding: 10px 0; border-radius: 20px; font-size: 0.85rem; color: var(--text-sec); cursor: pointer; transition: 0.2s;">Streak</div>
-                    <div class="ptab" id="ptab-sessions" onclick="app.switchProgressTab('sessions')" style="flex: 1; text-align: center; padding: 10px 0; border-radius: 20px; font-size: 0.85rem; color: var(--text-sec); cursor: pointer; transition: 0.2s;">Sessions</div>
+                <div class="progress-tabs mb-4">
+                    <div class="ptab active" id="ptab-overview" onclick="app.switchProgressTab('overview')">Overview</div>
+                    <div class="ptab" id="ptab-accuracy" onclick="app.switchProgressTab('accuracy')">Accuracy</div>
+                    <div class="ptab" id="ptab-streak" onclick="app.switchProgressTab('streak')">Streak</div>
+                    <div class="ptab" id="ptab-sessions" onclick="app.switchProgressTab('sessions')">Sessions</div>
                 </div>
 
-                <!-- ADDED: Content Wrapper for toggling -->
                 <div id="progress-overview-content">
                     <div class="date-navigator glass-card mt-2 mb-4" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; position:relative;">
-                        <button class="btn btn-outline" style="padding: 5px 15px;" onclick="app.changeDate(-1)">&#8592;</button>
+                        <button class="btn btn-outline" style="padding: 4px 12px;" onclick="app.changeDate(-1)">&#8592;</button>
                         <div style="position:relative; text-align:center; cursor:pointer;" onclick="document.getElementById('custom-date-picker').showPicker() || document.getElementById('custom-date-picker').click()">
-                            <h3 id="current-view-date" style="margin: 0; font-size: 1rem;">Today</h3>
-                            <p style="font-size:0.7rem; color:var(--text-sec)">Tap to filter date</p>
+                            <h3 id="current-view-date" style="margin: 0; font-size: 0.95rem;">Today</h3>
+                            <p style="font-size:0.65rem; color:var(--text-sec); text-transform:uppercase; letter-spacing:0.5px;">Tap to filter date</p>
                             <input type="date" id="custom-date-picker" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;" onchange="app.selectCustomDate(this.value)">
                         </div>
-                        <button class="btn btn-outline" style="padding: 5px 15px;" onclick="app.changeDate(1)">&#8594;</button>
+                        <button class="btn btn-outline" style="padding: 4px 12px;" onclick="app.changeDate(1)">&#8594;</button>
                     </div>
 
                     <div class="chart-card glass-card mb-4">
@@ -326,11 +324,11 @@
                 <div class="section-header">
                     <h2 data-i18n="goals_title">Goals & Improvement</h2>
                 </div>
-                <p class="text-secondary mb-4" style="font-size: 0.85rem;" data-i18n="goals_sub">Set your daily practice targets to build consistency.</p>
+                <p class="text-secondary mb-4" style="font-size: 0.8rem;" data-i18n="goals_sub">Set your daily practice targets to build consistency.</p>
                 
                 <div class="glass-card mt-4">
                     <div class="mb-4 text-left">
-                        <label class="text-secondary" style="font-size:0.85rem; font-weight: 500;" data-i18n="target_sessions">Daily Target Sessions</label>
+                        <label class="text-secondary" style="font-size:0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="target_sessions">Daily Target Sessions</label>
                         <input type="number" id="goal-target-sessions" class="auth-input mt-2" value="5" min="1" max="50" style="margin-bottom: 0;">
                     </div>
                     
@@ -345,9 +343,9 @@
                     <div class="setting-item" onclick="app.navigateTo('profile-view')" style="cursor:pointer;">
                         <div>
                             <h4>Account & Profile</h4>
-                            <p style="font-size:0.75rem; color:var(--text-sec);">Edit your personal details</p>
+                            <p style="font-size:0.7rem; color:var(--text-sec); margin-top:2px;">Edit your personal details</p>
                         </div>
-                        <span class="text-secondary" style="font-size: 1.2rem;">➔</span>
+                        <span class="text-secondary" style="font-size: 1.1rem;">➔</span>
                     </div>
 
                     <div class="setting-item">
@@ -355,7 +353,7 @@
                         <div class="toggle active" onclick="app.toggleTheme()"></div>
                     </div>
                     <div class="setting-item mt-2" style="border:none;">
-                        <div><button class="btn-outline" style="padding: 8px 16px; border-radius: 8px;" onclick="app.logout()">Logout</button></div>
+                        <div><button class="btn-outline" style="padding: 6px 14px; border-radius: var(--radius-sm); font-size: 0.8rem; text-transform: uppercase; font-weight: 600;" onclick="app.logout()">Logout</button></div>
                     </div>
                 </div>
             </section>
@@ -365,27 +363,27 @@
                 <div class="section-header">
                     <h2 data-i18n="edit_profile">Edit Profile</h2>
                 </div>
-                <p class="text-secondary mb-4" style="font-size: 0.85rem;">Update your account information.</p>
+                <p class="text-secondary mb-4" style="font-size: 0.8rem;">Update your account information.</p>
                 
                 <div class="glass-card mt-4">
                     <div class="mb-4 text-left">
-                        <label class="text-secondary" style="font-size:0.85rem; font-weight: 500;">Display Name</label>
+                        <label class="text-secondary" style="font-size:0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Display Name</label>
                         <input type="text" id="profile-name" class="auth-input mt-2" placeholder="e.g. Abdullah" style="margin-bottom: 0;">
                     </div>
                     <div class="mb-4 text-left">
-                        <label class="text-secondary" style="font-size:0.85rem; font-weight: 500;">Username</label>
+                        <label class="text-secondary" style="font-size:0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Username</label>
                         <input type="text" id="profile-username" class="auth-input mt-2" placeholder="@username" style="margin-bottom: 0;">
                     </div>
                     <div class="mb-4 text-left">
-                        <label class="text-secondary" style="font-size:0.85rem; font-weight: 500;">Email Address (Read Only)</label>
+                        <label class="text-secondary" style="font-size:0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Email Address (Read Only)</label>
                         <input type="email" id="profile-email" class="auth-input mt-2" disabled style="opacity:0.6; margin-bottom: 0;">
                     </div>
                     <div class="mb-4 text-left">
-                        <label class="text-secondary" style="font-size:0.85rem; font-weight: 500;">Phone Number</label>
+                        <label class="text-secondary" style="font-size:0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Phone Number</label>
                         <input type="tel" id="profile-phone" class="auth-input mt-2" placeholder="+971 50 123 4567" style="margin-bottom: 0;">
                     </div>
                     <div class="mb-4 text-left">
-                        <label class="text-secondary" style="font-size:0.85rem; font-weight: 500;">Update Password</label>
+                        <label class="text-secondary" style="font-size:0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Update Password</label>
                         <input type="password" id="profile-password" class="auth-input mt-2" placeholder="Leave blank to keep current" style="margin-bottom: 0;">
                     </div>
                     
@@ -396,38 +394,38 @@
 
         <!-- STICKY RECORD BAR -->
         <div class="sticky-record-bar glass-card" id="record-action-bar" style="display: none;">
-            <div class="timer" id="record-timer" style="font-size: 1.5rem; margin-bottom: 0; font-weight: 500;">00:00</div>
-            <div class="recording-status text-primary" id="record-status" data-i18n="tap_to_start" style="font-size: 0.85rem; margin-bottom: 15px; font-weight: 600;">Tap to start</div>
+            <div class="timer" id="record-timer" style="font-size: 1.3rem; margin-bottom: 0; font-weight: 600;">00:00</div>
+            <div class="recording-status text-primary" id="record-status" data-i18n="tap_to_start" style="font-size: 0.75rem; margin-bottom: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Tap to start</div>
             
-            <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between; width: 100%;">
-                <button class="btn btn-outline" style="flex: 1; padding: 0.75rem;" onclick="app.cancelRecording()">Cancel</button>
+            <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between; width: 100%;">
+                <button class="btn btn-outline" style="flex: 1; padding: 0.6rem;" onclick="app.cancelRecording()">Cancel</button>
                 
-                <div class="mic-container" style="margin:0; width: 70px; height: 70px;">
+                <div class="mic-container" style="margin:0; width: 60px; height: 60px;">
                     <div class="mic-waves" id="mic-waves"><div class="wave"></div><div class="wave"></div></div>
-                    <button class="mic-button" id="btn-mic" onclick="app.toggleRecording()" style="width: 60px; height: 60px; box-shadow: none;">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                    <button class="mic-button" id="btn-mic" onclick="app.toggleRecording()" style="width: 50px; height: 50px; box-shadow: none;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
                     </button>
                 </div>
                 
-                <button class="btn btn-primary" style="flex: 1; padding: 0.75rem;" onclick="app.finishRecording()">Finish</button>
+                <button class="btn btn-primary" style="flex: 1; padding: 0.6rem;" onclick="app.finishRecording()">Finish</button>
             </div>
         </div>
 
         <nav class="bottom-nav" id="main-bottom-nav">
             <a href="#" class="nav-item active" data-target="home-view" onclick="app.navigateTo('home-view', event)">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
                 <span data-i18n="nav_home">Home</span>
             </a>
             <a href="#" class="nav-item" data-target="progress-view" onclick="app.navigateTo('progress-view', event)">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
                 <span data-i18n="nav_progress">Progress</span>
             </a>
             <a href="#" class="nav-item" data-target="history-view" onclick="app.navigateTo('history-view', event)">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                 <span data-i18n="nav_history">History</span>
             </a>
             <a href="#" class="nav-item" data-target="settings-view" onclick="app.navigateTo('settings-view', event)">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                 <span data-i18n="nav_settings">Settings</span>
             </a>
         </nav>
