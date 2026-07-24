@@ -1,0 +1,33 @@
+# MASTER TAJWEED RULES RUBRIC
+
+## 1. Makharij (Points of Articulation) & Sifat (Characteristics)
+- HEAVY LETTERS (Tafkheem): خ, ص, ض, غ, ط, ق, ظ. These must be pronounced with a full mouth.
+- LIGHT LETTERS (Tarqeeq): All other letters. (Note: 'ر' and 'ل' have conditional rules).
+- COMMON MIX-UPS TO PENALIZE:
+  * Pronouncing ح (middle throat) as ه (deep throat).
+  * Pronouncing ص (heavy) as س (light).
+  * Pronouncing ط (heavy) as ت (light).
+  * Pronouncing ظ (heavy) as ز or ذ (light).
+  * Pronouncing ق (heavy/deep) as ك (light/forward).
+
+## 2. Qalqalah (Echo/Bouncing Sound)
+- Letters: ق, ط, ب, ج, د (Collected in: قُطْبُ جَدّ)
+- Rule: If any of these letters have a Sukoon (or stop at the end of an Ayah), they must have a distinct echoing sound.
+
+## 3. Nun Sakinah and Tanween
+- IZHAR (Clear): If followed by ء, ه, ع, ح, غ, خ, pronounce the 'N' sound clearly without extra nasalization.
+- IDGHAM (Merge): If followed by ي, ر, م, ل, و, ن. (With Ghunnah for ي,ن,م,و. Without Ghunnah for ل,ر).
+- IQLAB (Change): If followed by ب, change the 'N' sound into a hidden 'M' sound with Ghunnah.
+- IKHFA (Hide): If followed by any of the remaining 15 letters, hide the 'N' sound and apply a 2-beat Ghunnah.
+
+## 4. Meem Sakinah
+- IKHFA SHAFAWI: If followed by ب, hide the Meem and apply a 2-beat Ghunnah.
+- IDGHAM SHAFAWI: If followed by another م, merge them with a 2-beat Ghunnah.
+- IZHAR SHAFAWI: If followed by any other letter, pronounce the Meem clearly.
+
+## 5. Ghunnah (Nasalization)
+- Any نّ (Nun with Shaddah) or مّ (Meem with Shaddah) MUST be held for 2 beats through the nose.
+
+## 6. Madd (Elongation)
+- Natural Madd (Madd Tabi'i): 2 beats for Alif, Waw, Yaa.
+- Mandatory Madd (Madd Lazim): 6 beats (indicated by a thick wave over the letter followed by a Shaddah or Sukoon).

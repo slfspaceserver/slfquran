@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 const { GoogleGenerativeAI, SchemaType } = require('@google/generative-ai');
@@ -25,7 +26,21 @@ if (!apiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// Prioritizing the newest standard models for maximum intelligence
+// Load Master Tajweed Rules Document from root directory
+let tajweedRules = "";
+try {
+    const rulesPath = path.join(__dirname, 'tajweed_rules.txt');
+    if (fs.existsSync(rulesPath)) {
+        tajweedRules = fs.readFileSync(rulesPath, 'utf8');
+        console.log("📜 Master Tajweed Rules document successfully loaded.");
+    } else {
+        console.warn("⚠️ tajweed_rules.txt not found. Running with built-in prompt rubric.");
+    }
+} catch (err) {
+    console.warn("⚠️ Could not read tajweed_rules.txt file:", err.message);
+}
+
+// Prioritizing models for intelligence and precision
 const FALLBACK_MODELS = [
     "gemini-3.1-flash-lite",
     "gemini-2.5-flash",
@@ -87,42 +102,48 @@ app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
 
         console.log(`\n🎙️ Analyzing Audio for Surah ID: ${surahId}`);
 
-        // BYPASS FFMPEG DIRECTLY - Solves Render.com crash/hang issues
+        // Direct Buffer Handling - Prevents FFmpeg/Render crashes
         const audioBuffer = fs.readFileSync(rawAudioPath);
         const base64Audio = audioBuffer.toString('base64');
         const mimeType = req.file.mimetype === 'application/octet-stream' ? 'audio/webm' : req.file.mimetype;
 
         const groundTruthText = await fetchSurahReferenceText(surahId);
 
-        // HYPER-STRICT PROMPT
+        // HYPER-STRICT TAJWEED EVALUATION PROMPT
         const promptText = `
-You are a highly strict, elite Master Qari and Tajweed Examiner. 
-Your goal is 100% flawless error detection.
+You are an elite, highly rigorous Master Qari and expert Tajweed Examiner. 
+Your task is to analyze the user's recitation audio against the Reference Text strictly using the Official Tajweed Rules rubric provided below.
+
+### OFFICIAL TAJWEED RULES RUBRIC:
+${tajweedRules ? tajweedRules : "Apply strict classical Tajweed rules for Makharij, Sifat, Qalqalah, Ghunnah, and Madd."}
 
 ### REFERENCE TEXT FOR SURAH ID ${surahId}:
 ${groundTruthText}
 
-### MANDATORY EVALUATION STEPS:
-1. AUDIO ISOLATION: Listen to the audio. Identify the EXACT verses the user actually recited. Ignore unread verses.
-2. WORD-BY-WORD ALIGNMENT: 
-   - Flag if they mix heavy/light letters (e.g. 'س' vs 'ص', 'ح' vs 'ه', 'ذ' vs 'ز').
-   - Flag if they miss a Madd (elongation) or Ghunnah (nasalization).
-   - Flag skipped words.
-
-### CRITICAL ERROR PHRASING RULES:
-When reporting an error, you MUST state exactly what the user did wrong.
-- CORRECT: "You pronounced the letter 'ه' instead of the correct letter 'ح' in the word 'الرَّحِيمِ'."
-- NEVER state that a wrong letter exists inside the reference word itself.
+### MANDATORY EVALUATION STEPS FOR 100% ACCURACY:
+1. TRANSCRIBE FIRST: Mentally transcribe exactly what the user pronounced, word-by-word.
+2. ISOLATE ATTEMPTED VERSES: Only evaluate the words/verses the user actually recited. DO NOT penalize for unrecited verses.
+3. PHONETIC MATRIX & TAJWEED MATCH: Cross-reference your mental transcription against the Reference Text and Official Tajweed Rules:
+   - Check heavy vs light letter substitutions (e.g., 'س' vs 'ص', 'ح' vs 'ه', 'ذ' vs 'ز', 'ت' vs 'ط', 'ك' vs 'ق').
+   - Check missing Qalqalah on stopped/sukun letters (ق, ط, ب, ج, د).
+   - Check missing Ghunnah (2 beats) on Nun/Meem Shaddah or Ikhfa/Idgham rules.
+   - Check improper Madd (elongation) timings.
+4. NO HALLUCINATIONS: Only flag an error if you clearly hear a mistake that violates a rule.
+5. STRICT ERROR PHRASING RULES:
+   - When reporting an error, you MUST explicitly separate what the user spoke from what was required.
+   - CORRECT PHRASING: "You pronounced the letter 'ه' instead of the correct letter 'ح' in the word 'الرَّحِيمِ'."
+   - WRONG PHRASING: "Incorrect articulation of 'ح' in 'الرَّحِيمِ'." (NEVER use this vague phrasing).
 
 ### SCORING SYSTEM:
-- Start at 100%.
-- Deduct 5-10 points for every distinct pronunciation, memorization, or Tajweed error found in the *attempted* audio.
-- DO NOT penalize for unread verses.
+- Start at 100 points.
+- Minor Tajweed mistake (e.g., short Madd, missed Ghunnah): Deduct 2-3 points.
+- Major Pronunciation mistake (changed letter/Makhraj): Deduct 5 points.
+- Memorization mistake (skipped or added word): Deduct 10 points.
 
-### LANGUAGE: 
+### LANGUAGE OUTPUT: 
 ${language === 'ml' 
    ? 'Provide msgMl and actionMl in natural Malayalam. Clearly distinguish the wrong spoken letter from the correct letter.' 
-   : 'Provide msgEn and actionEn in clear English.'}
+   : 'Provide msgEn and actionEn in clear, direct English.'}
 `;
 
         let parsedData = null;
@@ -146,7 +167,7 @@ ${language === 'ml'
                     generationConfig: { 
                         responseMimeType: "application/json",
                         responseSchema: responseSchema,
-                        temperature: 0.0 // Zero temperature for deterministic grading
+                        temperature: 0.0 // Zero temperature for strict, deterministic logic
                     }
                 });
 
