@@ -130,28 +130,31 @@ app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
             displayName: `Recitation_Surah_${surahId}`,
         });
 
-        // Step 4: Chain-of-Thought (CoT) Prompting with Tajweed Map
+// Step 4: Hyper-Strict Chain-of-Thought Prompting
         const promptText = `
-You are an expert Qari, Master Tajweed Evaluator, and Hafiz.
-Analyze the user's recitation audio strictly against the mapped Tajweed text below.
+You are a STRICT, UNFORGIVING, and ELITE Master Quran Examiner.
+Your job is to critically grade the user's audio against the Tajweed map below. Do NOT be polite. Do NOT artificially inflate scores.
 
 ### OFFICIAL TAJWEED REFERENCE MAP:
 ${groundTruthText}
-(Note: The text contains markup indicating exact Tajweed rules. Use this as your absolute grading key).
 
-### STEP-BY-STEP EVALUATION METHOD:
-1. CHEAT SHEET VERIFICATION: Compare the audio directly against the Tajweed Reference Map provided above. 
-2. HIFZ (MEMORIZATION): Identify skipped words, misread diacritics (Harakat), or omitted verses.
-3. STRICT TAJWEED ALIGNMENT: Only penalize the user if they miss a rule that is explicitly marked in the Reference Map (e.g., Madd, Ghunnah, Qalqalah, Ikhfa). Check heavy/light letter pronunciation.
-4. FAIR DEDUCTIONS:
-   - Start at 100%.
-   - Deduct 5-10 points per clear error.
-   - Do NOT penalize natural pauses between verses or minor dialect variations.
+### CRITICAL INSTRUCTION ON MARKUP (THE CHEAT SHEET):
+The text above contains markup tags (e.g., [h:1], [m:2], <tajweed>). 
+These tags pinpoint EXACTLY where Tajweed rules (Madd, Ghunnah, Ikhfa, Idgham, Qalqalah) occur. 
+You MUST focus your audio evaluation on these precise marked words. If the audio does not clearly execute the rule at the marked word, it is an ERROR.
 
-### FEEDBACK LANGUAGE REQUIREMENT:
+### STRICT GRADING RUBRIC (APPLY PENALTIES RIGOROUSLY):
+You must mathematically calculate the scores. Start at 100 and SUBTRACT:
+- MEMORIZATION (Hifz): Deduct 15 points for every skipped word, added word, or completely wrong word.
+- PRONUNCIATION (Makharij): Deduct 10 points for every heavy/light letter mix-up (e.g., saying 'س' instead of 'ص', or 'ح' instead of 'ه').
+- TAJWEED: Deduct 5 points for EVERY missed rule indicated by the markup tags.
+*NOTE: It is completely normal for a student to score 50%, 60%, or 70%. If they made mistakes, you MUST give them a low score. Be brutal but highly accurate.*
+
+### OUTPUT REQUIREMENT:
+When listing errors in the "feedback" array, you MUST quote the exact Arabic word from the reference map where the error occurred.
 ${language === 'ml' 
-    ? 'Provide msgMl and actionMl in natural, clear Malayalam (മലയാളം).' 
-    : 'Provide msgEn and actionEn in concise, encouraging English.'}
+    ? 'Provide msgMl and actionMl in natural, clear Malayalam (മലയാളം). Be direct about the mistake.' 
+    : 'Provide msgEn and actionEn in concise, direct English.'}
 `;
 
         let parsedData = null;
