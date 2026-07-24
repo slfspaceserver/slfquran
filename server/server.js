@@ -10,7 +10,6 @@ require('dotenv').config();
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 const { GoogleGenerativeAI, SchemaType } = require('@google/generative-ai');
-const { GoogleAIFileManager } = require('@google/generative-ai/server');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,9 +29,7 @@ if (!apiKey) {
 }
 
 const genAI = new GoogleGenerativeAI(apiKey);
-const fileManager = new GoogleAIFileManager(apiKey);
 
-// Models prioritized for audio phonetics and high-accuracy analysis
 const FALLBACK_MODELS = [
     "gemini-2.5-flash",
     "gemini-3-flash",
@@ -41,14 +38,13 @@ const FALLBACK_MODELS = [
     "gemini-2.5-flash-lite"
 ];
 
-// Strict JSON Schema Enforcement
 const responseSchema = {
     type: SchemaType.OBJECT,
     properties: {
         overallScore: { type: SchemaType.INTEGER, description: "Overall accuracy score from 0 to 100" },
         pronunciation: { type: SchemaType.INTEGER, description: "Pronunciation score from 0 to 100" },
-        memorization: { type: SchemaType.INTEGER, description: "Memorization accuracy score from 0 to 100" },
-        tajweed: { type: SchemaType.INTEGER, description: "Tajweed precision score from 0 to 100" },
+        memorization: { type: SchemaType.INTEGER, description: "Memorization score from 0 to 100" },
+        tajweed: { type: SchemaType.INTEGER, description: "Tajweed score from 0 to 100" },
         feedback: {
             type: SchemaType.ARRAY,
             items: {
@@ -56,11 +52,11 @@ const responseSchema = {
                 properties: {
                     type: { type: SchemaType.STRING, enum: ["perfect", "warning", "error"] },
                     verse: { type: SchemaType.STRING, description: "e.g., 'Verse 1'" },
-                    ar: { type: SchemaType.STRING, description: "Specific Arabic word or phrase flagged" },
-                    msgEn: { type: SchemaType.STRING, description: "Detailed feedback in English" },
-                    msgMl: { type: SchemaType.STRING, description: "Detailed feedback in Malayalam" },
-                    actionEn: { type: SchemaType.STRING, description: "How to fix in English" },
-                    actionMl: { type: SchemaType.STRING, description: "How to fix in Malayalam" }
+                    ar: { type: SchemaType.STRING, description: "Arabic word or phrase evaluated" },
+                    msgEn: { type: SchemaType.STRING, description: "Feedback in English" },
+                    msgMl: { type: SchemaType.STRING, description: "Feedback in Malayalam" },
+                    actionEn: { type: SchemaType.STRING, description: "Correction tip in English" },
+                    actionMl: { type: SchemaType.STRING, description: "Correction tip in Malayalam" }
                 },
                 required: ["type", "verse", "msgEn", "msgMl"]
             }
@@ -69,36 +65,31 @@ const responseSchema = {
     required: ["overallScore", "pronunciation", "memorization", "tajweed", "feedback"]
 };
 
-// Helper: Clean and normalize audio using FFmpeg
 async function normalizeAudio(inputPath) {
     const outputPath = path.join('uploads', `processed_${Date.now()}.wav`);
     return new Promise((resolve) => {
         ffmpeg(inputPath)
             .toFormat('wav')
-            .audioChannels(1) // Mono
-            .audioFrequency(16000) // 16kHz optimal speech frequency
-            .audioFilter('highpass=f=200, lowpass=f=3000') // Noise reduction
+            .audioChannels(1) 
+            .audioFrequency(16000) 
             .on('end', () => resolve(outputPath))
             .on('error', (err) => {
-                console.warn("⚠️ FFmpeg processing failed, falling back to raw audio:", err);
+                console.warn("⚠️ FFmpeg conversion warning, utilizing raw file:", err);
                 resolve(inputPath);
             })
             .save(outputPath);
     });
 }
 
-// UPDATE: Fetching the Annotated Tajweed Version
 async function fetchSurahReferenceText(surahId) {
     try {
-        // Changed from quran-uthmani to ar.tajweed
         const response = await fetch(`https://api.alquran.cloud/v1/surah/${surahId}/ar.tajweed`);
         const data = await response.json();
         if (data && data.data && data.data.ayahs) {
-            // Returns text with [h:...], [m:...] tags that map where Tajweed rules apply
             return data.data.ayahs.map(a => `[Verse ${a.numberInSurah}]: ${a.text}`).join('\n');
         }
     } catch (err) {
-        console.warn("⚠️ Could not fetch Tajweed ground truth reference text:", err);
+        console.warn("⚠️ Could not fetch Tajweed reference text:", err);
     }
     return "Reference text unavailable.";
 }
@@ -106,7 +97,6 @@ async function fetchSurahReferenceText(surahId) {
 app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
     let rawAudioPath = req.file ? req.file.path : null;
     let processedAudioPath = null;
-    let uploadedFileRef = null;
 
     try {
         if (!rawAudioPath) {
@@ -116,45 +106,36 @@ app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
         const surahId = req.body.surahId || 1;
         const language = req.body.language || 'en';
 
-        console.log(`\n🎙️ Processing High-Accuracy Audio for Surah ID: ${surahId}`);
+        console.log(`\n🎙️ Analyzing Audio for Surah ID: ${surahId}`);
 
-        // Step 1: Normalize audio via FFmpeg
         processedAudioPath = await normalizeAudio(rawAudioPath);
-
-        // Step 2: Fetch Annotated Tajweed Ground Truth
+        const audioBuffer = fs.readFileSync(processedAudioPath);
+        const base64Audio = audioBuffer.toString('base64');
         const groundTruthText = await fetchSurahReferenceText(surahId);
 
-        // Step 3: Upload audio to Gemini File Manager
-        uploadedFileRef = await fileManager.uploadFile(processedAudioPath, {
-            mimeType: "audio/wav",
-            displayName: `Recitation_Surah_${surahId}`,
-        });
-
-// Step 4: Hyper-Strict Chain-of-Thought Prompting
+        // UPDATE: Strict Phrasing Rules Added
         const promptText = `
-You are a STRICT, UNFORGIVING, and ELITE Master Quran Examiner.
-Your job is to critically grade the user's audio against the Tajweed map below. Do NOT be polite. Do NOT artificially inflate scores.
+You are an expert Qari and Master Tajweed Evaluator. 
+Listen carefully to the user's recitation audio.
 
-### OFFICIAL TAJWEED REFERENCE MAP:
+### REFERENCE TEXT FOR SURAH ID ${surahId}:
 ${groundTruthText}
 
-### CRITICAL INSTRUCTION ON MARKUP (THE CHEAT SHEET):
-The text above contains markup tags (e.g., [h:1], [m:2], <tajweed>). 
-These tags pinpoint EXACTLY where Tajweed rules (Madd, Ghunnah, Ikhfa, Idgham, Qalqalah) occur. 
-You MUST focus your audio evaluation on these precise marked words. If the audio does not clearly execute the rule at the marked word, it is an ERROR.
+### CRITICAL ERROR PHRASING RULES (MANDATORY):
+You must NEVER state that a wrong letter exists inside the correct word.
+- CORRECT PHRASING: "You accidentally pronounced the letter 'ظ' instead of the correct letter 'ح' in the word 'الْمُفْلِحُونَ'."
+- WRONG PHRASING: "Incorrect articulation of the letter 'ظ' in 'الْمُفْلِحُونَ'." (This implies 'ظ' belongs in the word, which is a hallucination).
+Always clarify the [Wrong Spoken Letter] vs the [Actual Correct Letter].
 
-### STRICT GRADING RUBRIC (APPLY PENALTIES RIGOROUSLY):
-You must mathematically calculate the scores. Start at 100 and SUBTRACT:
-- MEMORIZATION (Hifz): Deduct 15 points for every skipped word, added word, or completely wrong word.
-- PRONUNCIATION (Makharij): Deduct 10 points for every heavy/light letter mix-up (e.g., saying 'س' instead of 'ص', or 'ح' instead of 'ه').
-- TAJWEED: Deduct 5 points for EVERY missed rule indicated by the markup tags.
-*NOTE: It is completely normal for a student to score 50%, 60%, or 70%. If they made mistakes, you MUST give them a low score. Be brutal but highly accurate.*
+### EVALUATION RULES:
+1. PARTIAL RECITATION HANDLING: The user MAY NOT recite the entire Surah. Identify WHICH verses they actually attempted. Grade ONLY the verses they recited. DO NOT score 0% for unattempted verses.
+2. PRONUNCIATION & TAJWEED: Evaluate Makharij, Madd, Ghunnah, and Qalqalah based on the Tajweed Markup.
+3. SCORING: Calculate realistic scores (0-100) based on accuracy of the spoken verses. Start at 100 and deduct points strictly for actual errors made.
 
-### OUTPUT REQUIREMENT:
-When listing errors in the "feedback" array, you MUST quote the exact Arabic word from the reference map where the error occurred.
+### LANGUAGE: 
 ${language === 'ml' 
-    ? 'Provide msgMl and actionMl in natural, clear Malayalam (മലയാളം). Be direct about the mistake.' 
-    : 'Provide msgEn and actionEn in concise, direct English.'}
+   ? 'Provide msgMl and actionMl in natural Malayalam. Clearly distinguish the wrong spoken letter from the correct letter.' 
+   : 'Provide msgEn and actionEn in clear English.'}
 `;
 
         let parsedData = null;
@@ -170,7 +151,7 @@ ${language === 'ml'
                         { 
                             role: "user", 
                             parts: [
-                                { fileData: { mimeType: uploadedFileRef.file.mimeType, fileUri: uploadedFileRef.file.uri } },
+                                { inlineData: { mimeType: "audio/wav", data: base64Audio } },
                                 { text: promptText }
                             ]
                         }
@@ -178,30 +159,28 @@ ${language === 'ml'
                     generationConfig: { 
                         responseMimeType: "application/json",
                         responseSchema: responseSchema,
-                        temperature: 0.1 // Stops score volatility
+                        temperature: 0.1
                     }
                 });
 
                 const rawText = result.response.text();
                 parsedData = JSON.parse(rawText);
-                console.log(`✅ Evaluation success with model: ${modelName}`);
+                console.log(`✅ Success with model: ${modelName}`);
                 break;
             } catch (err) {
-                console.warn(`⚠️ Model ${modelName} failed. Trying fallback...`, err.message);
+                console.warn(`⚠️ Model ${modelName} failed. Trying next model...`, err.message);
                 lastError = err;
             }
         }
 
-        if (!parsedData) throw lastError || new Error("All fallback models failed.");
+        if (!parsedData) throw lastError || new Error("All models failed.");
 
-        // Cleanup temporary files
         if (rawAudioPath && fs.existsSync(rawAudioPath)) fs.unlinkSync(rawAudioPath);
         if (processedAudioPath && fs.existsSync(processedAudioPath) && processedAudioPath !== rawAudioPath) fs.unlinkSync(processedAudioPath);
-        if (uploadedFileRef) await fileManager.deleteFile(uploadedFileRef.file.name);
 
         res.json({
             status: "success",
-            message: "High-accuracy processed recitation analyzed.",
+            message: "Recitation successfully analyzed.",
             data: parsedData
         });
 

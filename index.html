@@ -22,20 +22,37 @@
         <button onclick="app.finishRecording()" class="stop-btn" data-i18n="finish">Finish</button>
     </div>
 
+    <!-- Global Toast Notification -->
+    <div id="toast-notification">Saved successfully</div>
+
     <div class="app-container">
-        <header class="app-header">
-            <div class="logo" style="display: flex; align-items: center; gap: 8px;">
-                <img src="https://raw.githubusercontent.com/slfspaceserver/slfquran/main/img/logo-slf-quran.png" alt="Logo" style="width: auto; height: 32px; object-fit: contain;">
-            </div>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <button class="lang-toggle" onclick="app.toggleLanguage()" id="lang-btn">മലയാളം</button>
-                <div class="header-actions" id="back-btn-container" style="display: none;">
-                    <button class="icon-btn" onclick="app.goBack()">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="19" y1="12" x2="5" y2="12"></line>
-                            <polyline points="12 19 5 12 12 5"></polyline>
-                        </svg>
-                    </button>
+        
+        <!-- HEADER LAYOUT -->
+        <header class="home-header">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                
+                <!-- Left Side: Profile Pill OR Back Button -->
+                <div style="display: flex; align-items: center;">
+                    <!-- Profile Indicator -->
+                    <div class="profile-pill" id="header-profile-pill" onclick="app.navigateTo('profile-view')">
+                        <div id="header-avatar" style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #000;">U</div>
+                        <span id="header-username-display" style="font-size: 0.85rem; font-weight: 600; color: var(--text);">Profile</span>
+                    </div>
+
+                    <!-- Back Button (Hidden on Home) -->
+                    <div id="back-btn-container" style="display: none;">
+                        <button class="icon-btn" onclick="app.goBack()">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="19" y1="12" x2="5" y2="12"></line>
+                                <polyline points="12 19 5 12 12 5"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Side: Language Toggle -->
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button class="lang-toggle" onclick="app.toggleLanguage()" id="lang-btn">മലയാളം</button>
                 </div>
             </div>
         </header>
@@ -82,11 +99,13 @@
 
             <!-- VIEW: HOME -->
             <section id="home-view" class="view">
-                <div class="hero-section">
-                    <h1 class="hero-title" data-i18n="hero_title">Practice. Improve.<br><span class="text-primary">Recite with Confidence.</span></h1>
-                    <p class="hero-subtitle" data-i18n="hero_sub">Your personal AI-powered Quran recitation assistant.</p>
+                
+                <!-- Logo (Only on Home Page scrollable area) -->
+                <div style="display: flex; justify-content: center; padding-bottom: 20px; padding-top: 10px;">
+                    <img src="https://raw.githubusercontent.com/slfspaceserver/slfquran/main/img/logo-slf-quran.png" alt="Logo" style="height: 45px; object-fit: contain;">
                 </div>
 
+                <!-- 3-Card Row Stats Grid (Restored) -->
                 <div class="stats-grid">
                     <div class="stat-card glass-card">
                         <div class="stat-icon text-accent">🔥</div>
@@ -105,15 +124,32 @@
                     </div>
                 </div>
 
+                <!-- Wide Button Action -->
                 <div class="action-section">
-                    <button class="btn btn-primary btn-large" onclick="app.navigateTo('surah-view')">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                    <button class="btn btn-primary btn-large btn-block" onclick="app.navigateTo('surah-view')">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
                         <span data-i18n="start_practice">Start Practice</span>
                     </button>
                 </div>
 
-                <!-- ADDED: Today's Goal -->
-<!-- DYNAMIC: Today's Goal -->
+                <!-- ADDED: Continue Practice (Bookmark) -->
+                <div id="continue-practice-section" style="display: none;">
+                    <div class="section-header">
+                        <h2 data-i18n="continue_practice">Continue Practice</h2>
+                    </div>
+                    <div class="glass-card mb-4 border-accent" onclick="app.resumeBookmark()" style="display:flex; justify-content:space-between; align-items:center; padding:15px; cursor:pointer; transition: transform 0.2s;">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(255, 209, 102, 0.1); color: var(--accent); border-radius: var(--radius-sm); font-weight: 600;">🔖</div>
+                            <div>
+                                <p style="font-size:0.75rem; color:var(--text-sec);" data-i18n="last_recited">Last Recited</p>
+                                <h3 id="bookmark-surah-name" style="font-size:0.95rem; font-weight:600;">Loading...</h3>
+                            </div>
+                        </div>
+                        <span class="text-primary">▶</span>
+                    </div>
+                </div>
+                
+                <!-- DYNAMIC: Today's Goal -->
                 <div class="section-header">
                     <h2 data-i18n="todays_goal">Today's Goal</h2>
                 </div>
@@ -129,8 +165,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- ... (Keep Recent Practice Here) ... -->
 
                 <div class="recent-practice">
                     <div class="section-header">
@@ -286,6 +320,7 @@
                 </div>
                 <div class="history-list" id="history-list"></div>
             </section>
+            
             <!-- VIEW: GOAL SETTINGS -->
             <section id="goal-view" class="view">
                 <div class="section-header">
@@ -302,6 +337,7 @@
                     <button class="btn btn-primary btn-block mt-4" onclick="app.saveGoals()" data-i18n="save_goals">Save Goals</button>
                 </div>
             </section>
+            
             <!-- VIEW: SETTINGS -->
             <section id="settings-view" class="view">
                 <div class="section-header"><h2 data-i18n="settings">Settings</h2></div>
@@ -324,21 +360,35 @@
                 </div>
             </section>
 
-            <!-- VIEW: PROFILE -->
+            <!-- VIEW: EXPANDED PROFILE -->
             <section id="profile-view" class="view">
                 <div class="section-header">
                     <h2 data-i18n="edit_profile">Edit Profile</h2>
                 </div>
                 <p class="text-secondary mb-4" style="font-size: 0.85rem;">Update your account information.</p>
+                
                 <div class="glass-card mt-4">
                     <div class="mb-4 text-left">
                         <label class="text-secondary" style="font-size:0.85rem; font-weight: 500;">Display Name</label>
                         <input type="text" id="profile-name" class="auth-input mt-2" placeholder="e.g. Abdullah" style="margin-bottom: 0;">
                     </div>
                     <div class="mb-4 text-left">
+                        <label class="text-secondary" style="font-size:0.85rem; font-weight: 500;">Username</label>
+                        <input type="text" id="profile-username" class="auth-input mt-2" placeholder="@username" style="margin-bottom: 0;">
+                    </div>
+                    <div class="mb-4 text-left">
                         <label class="text-secondary" style="font-size:0.85rem; font-weight: 500;">Email Address (Read Only)</label>
                         <input type="email" id="profile-email" class="auth-input mt-2" disabled style="opacity:0.6; margin-bottom: 0;">
                     </div>
+                    <div class="mb-4 text-left">
+                        <label class="text-secondary" style="font-size:0.85rem; font-weight: 500;">Phone Number</label>
+                        <input type="tel" id="profile-phone" class="auth-input mt-2" placeholder="+971 50 123 4567" style="margin-bottom: 0;">
+                    </div>
+                    <div class="mb-4 text-left">
+                        <label class="text-secondary" style="font-size:0.85rem; font-weight: 500;">Update Password</label>
+                        <input type="password" id="profile-password" class="auth-input mt-2" placeholder="Leave blank to keep current" style="margin-bottom: 0;">
+                    </div>
+                    
                     <button class="btn btn-primary btn-block mt-4" onclick="app.saveProfile()">Save Changes</button>
                 </div>
             </section>

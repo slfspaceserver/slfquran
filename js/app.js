@@ -1,6 +1,6 @@
 /**
- * Quran AI Coach - MVP JavaScript
- * Restored Architecture + Auth UI, Profile, Constraints, Search, API Integration + UX Fixes
+ * Quran AI Coach - Complete Updated JS
+ * Fixes: INSTANT Continue Practice Bookmark via LocalStorage Caching
  */
 
 const firebaseConfig = {
@@ -13,7 +13,6 @@ const firebaseConfig = {
     measurementId: "G-EBFXJ2381S"
 };
 
-// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
@@ -23,7 +22,7 @@ const googleProvider = new firebase.auth.GoogleAuthProvider();
 const app = (() => {
     let currentView = 'home-view';
     let viewHistory = ['home-view'];
-    let surahs = []; // Dynamically fetched
+    let surahs = []; 
     let selectedSurah = null;
     let recordingTimer = null;
     let seconds = 0;
@@ -34,16 +33,14 @@ const app = (() => {
     let mediaRecorder = null;
     let audioChunks = [];
     let hasAnimatedDashboard = false; 
-
-    // Date Filter State
     let currentViewDate = new Date();
 
-    // Local app state
     let appData = {
         history: [],
         theme: 'dark',
         profile: { name: '' },
-        goals: { targetSessions: 5 } // Goal Setting State
+        goals: { targetSessions: 5 },
+        bookmark: null 
     };
 
     let currentUser = null;
@@ -59,39 +56,77 @@ const app = (() => {
         recordActionBar: document.getElementById('record-action-bar'), mainBottomNav: document.getElementById('main-bottom-nav')
     };
 
-    // ==========================================
-    // PROGRESS TABS SWITCHER
-    // ==========================================
+    const formatLifetimeTime = (totalSec) => {
+        if (!totalSec || totalSec <= 0) return "0m";
+        const hours = Math.floor(totalSec / 3600);
+        const mins = Math.floor((totalSec % 3600) / 60);
+        const secs = totalSec % 60;
+        if (hours > 0) return `${hours}h ${mins}m`;
+        if (mins > 0) return `${mins}m ${secs}s`;
+        return `${secs}s`;
+    };
+
+    const updateHeaderProfile = () => {
+        const nameDisplay = document.getElementById('header-username-display');
+        const avatarDisplay = document.getElementById('header-avatar');
+        if (appData.profile && appData.profile.name) {
+            const firstName = appData.profile.name.split(' ')[0];
+            if(nameDisplay) nameDisplay.textContent = firstName;
+            if(avatarDisplay) avatarDisplay.textContent = firstName.charAt(0).toUpperCase();
+        }
+    };
+
+    const showToast = (message) => {
+        const toast = document.getElementById('toast-notification');
+        if(toast) {
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => { toast.classList.remove('show'); }, 3000);
+        }
+    };
+
     const switchProgressTab = (tabName) => {
-        // Update active class on tabs
         document.querySelectorAll('.ptab').forEach(tab => tab.classList.remove('active'));
         const activeTab = document.getElementById(`ptab-${tabName}`);
         if (activeTab) activeTab.classList.add('active');
 
-        // Target containers
         const detailsContainer = document.getElementById('progress-details');
         const overviewContent = document.getElementById('progress-overview-content');
         
         if (!detailsContainer || !overviewContent) return;
 
-        // Toggle overview section visibility
         if (tabName !== 'overview') {
             overviewContent.style.display = 'none';
         } else {
             overviewContent.style.display = 'block';
         }
 
-        // Render dynamic content based on tab selected
+        const totalLifetimeSeconds = appData.history.reduce((sum, item) => sum + (item.duration || 0), 0);
+        const lifetimeTimeFormatted = formatLifetimeTime(totalLifetimeSeconds);
+
         if (tabName === 'accuracy') {
             const avg = appData.history.length > 0 ? Math.round(appData.history.reduce((a,b)=>a+b.score,0)/appData.history.length) : 0;
-            detailsContainer.innerHTML = `<div class="glass-card text-center mt-4" style="padding: 2rem;"><h3>Average Accuracy</h3><p class="text-primary" style="font-size: 2.5rem; font-weight: 700; margin-top: 10px;">${avg}%</p></div>`;
+            detailsContainer.innerHTML = `
+                <div class="glass-card text-center mt-4" style="padding: 2rem;">
+                    <h3>Average Accuracy</h3>
+                    <p class="text-primary" style="font-size: 2.5rem; font-weight: 700; margin-top: 10px;">${avg}%</p>
+                </div>`;
         } else if (tabName === 'streak') {
             const uniqueDays = new Set(appData.history.map(h => new Date(h.date).toDateString()));
-            detailsContainer.innerHTML = `<div class="glass-card text-center mt-4" style="padding: 2rem;"><h3>Current Active Streak</h3><p class="text-accent" style="font-size: 2.5rem; font-weight: 700; margin-top: 10px;">🔥 ${uniqueDays.size} Days</p></div>`;
+            detailsContainer.innerHTML = `
+                <div class="glass-card text-center mt-4" style="padding: 2rem;">
+                    <h3>Current Active Streak</h3>
+                    <p class="text-accent" style="font-size: 2.5rem; font-weight: 700; margin-top: 10px;">🔥 ${uniqueDays.size} Days</p>
+                </div>`;
         } else if (tabName === 'sessions') {
-            detailsContainer.innerHTML = `<div class="glass-card text-center mt-4" style="padding: 2rem;"><h3>Total Completed Sessions</h3><p class="text-primary" style="font-size: 2.5rem; font-weight: 700; margin-top: 10px;">🎙️ ${appData.history.length}</p></div>`;
+            detailsContainer.innerHTML = `
+                <div class="glass-card text-center mt-4" style="padding: 2rem;">
+                    <h3>Total Completed Sessions</h3>
+                    <p class="text-primary" style="font-size: 2.5rem; font-weight: 700; margin-top: 10px;">🎙️ ${appData.history.length}</p>
+                    <p class="text-secondary mt-2" style="font-size:0.9rem;">Lifetime Practice Time: <strong>${lifetimeTimeFormatted}</strong></p>
+                </div>`;
         } else {
-            updateDateDisplay(); // Re-render overview records
+            updateDateDisplay(); 
         }
     };
 
@@ -111,7 +146,6 @@ const app = (() => {
                     const rms = Math.sqrt(sum / rawData.length);
                     resolve(rms > 0.005);
                 } catch (e) {
-                    console.error("Audio context error, bypassing silence check.", e);
                     resolve(true); 
                 }
             };
@@ -132,16 +166,49 @@ const app = (() => {
         window.requestAnimationFrame(step);
     };
 
+    const animateGoal = (textEl, barEl, ringEl, endPct, duration) => {
+        let startTimestamp = null;
+        const step = (timestamp) => {
+            if (!startTimestamp) startTimestamp = timestamp;
+            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+            const currentPct = Math.floor(progress * endPct);
+            
+            if (textEl) textEl.textContent = currentPct + "%";
+            if (ringEl) ringEl.style.background = `conic-gradient(var(--primary) ${currentPct}%, rgba(255,255,255,0.05) 0)`;
+            
+            if (progress < 1) window.requestAnimationFrame(step);
+        };
+        if (barEl) { 
+            barEl.style.transition = 'none'; 
+            barEl.style.width = '0%'; 
+            setTimeout(() => { 
+                barEl.style.transition = 'width 0.5s ease'; 
+                barEl.style.width = `${endPct}%`; 
+            }, 50); 
+        }
+        window.requestAnimationFrame(step);
+    };
+
     const init = () => {
         applyLanguage();
         fetchQuranData(); 
         
+        let localDataLoaded = false;
+
+        // LOAD HISTORY CACHE
         const cachedHistory = localStorage.getItem('quranCachedHistory');
         if (cachedHistory) {
-            try {
-                appData.history = JSON.parse(cachedHistory);
-                updateDashboard(true); 
-            } catch(e) { console.error("Error parsing cache:", e); }
+            try { appData.history = JSON.parse(cachedHistory); localDataLoaded = true; } catch(e) {}
+        }
+
+        // LOAD BOOKMARK CACHE (INSTANT LOAD)
+        const cachedBookmark = localStorage.getItem('quranCachedBookmark');
+        if (cachedBookmark && cachedBookmark !== "undefined" && cachedBookmark !== "null") {
+            try { appData.bookmark = JSON.parse(cachedBookmark); localDataLoaded = true; } catch(e) {}
+        }
+
+        if (localDataLoaded) {
+            updateDashboard(true); 
         }
         
         auth.onAuthStateChanged(user => {
@@ -164,7 +231,8 @@ const app = (() => {
                 id: s.number, number: s.number, nameEn: s.englishName, nameAr: s.name, verses: s.numberOfAyahs
             }));
             renderSurahList(surahs);
-            generateDailyRecommendation(); // Generate recommendation after surahs load
+            generateDailyRecommendation();
+            updateDashboard(); 
         } catch (e) { console.error("Failed to load surahs", e); }
     };
 
@@ -174,15 +242,23 @@ const app = (() => {
             const userDoc = await db.collection('users').doc(user.uid).get();
             if (userDoc.exists) {
                 if (userDoc.data().profile) appData.profile = userDoc.data().profile;
-                if (userDoc.data().goals) appData.goals = userDoc.data().goals; // Fetch Goals
+                if (userDoc.data().goals) appData.goals = userDoc.data().goals;
+                if (userDoc.data().bookmark) {
+                    appData.bookmark = userDoc.data().bookmark;
+                    localStorage.setItem('quranCachedBookmark', JSON.stringify(appData.bookmark));
+                }
                 
-                if(document.getElementById('profile-name')) {
-                    document.getElementById('profile-name').value = appData.profile.name || '';
-                }
-                if(document.getElementById('goal-target-sessions')) {
-                    document.getElementById('goal-target-sessions').value = appData.goals.targetSessions || 5;
-                }
+                if(document.getElementById('profile-name')) document.getElementById('profile-name').value = appData.profile.name || '';
+                if(document.getElementById('profile-username')) document.getElementById('profile-username').value = appData.profile.username || '';
+                if(document.getElementById('profile-phone')) document.getElementById('profile-phone').value = appData.profile.phone || '';
+                if(document.getElementById('goal-target-sessions')) document.getElementById('goal-target-sessions').value = appData.goals.targetSessions || 5;
             }
+            if(document.getElementById('profile-email')) {
+                document.getElementById('profile-email').value = user.email || '';
+            }
+
+            updateHeaderProfile();
+
             const localSettings = JSON.parse(localStorage.getItem(`quranTheme_${user.uid}`));
             if (localSettings) appData.theme = localSettings.theme;
 
@@ -200,22 +276,47 @@ const app = (() => {
         if (!currentUser) return;
         localStorage.setItem(`quranTheme_${currentUser.uid}`, JSON.stringify({ theme: appData.theme }));
         localStorage.setItem('quranCachedHistory', JSON.stringify(appData.history));
-        if (newEntry) {
-            try {
-                await db.collection('users').doc(currentUser.uid).collection('history').doc(newEntry.id.toString()).set(newEntry);
-            } catch (error) { console.error("Error saving history:", error); }
+        
+        // INSTANT CACHE SAVING FOR BOOKMARK
+        if (appData.bookmark) {
+            localStorage.setItem('quranCachedBookmark', JSON.stringify(appData.bookmark));
         }
+        
+        try {
+            await db.collection('users').doc(currentUser.uid).set({ bookmark: appData.bookmark }, { merge: true });
+            
+            if (newEntry) {
+                await db.collection('users').doc(currentUser.uid).collection('history').doc(newEntry.id.toString()).set(newEntry);
+            }
+        } catch (error) { console.error("Error saving data:", error); }
     };
 
     const saveProfile = async () => {
         if(!currentUser) return;
+        
         const name = document.getElementById('profile-name').value;
-        appData.profile = { name };
+        const username = document.getElementById('profile-username').value;
+        const phone = document.getElementById('profile-phone').value;
+        const newPassword = document.getElementById('profile-password').value;
+
+        appData.profile = { ...appData.profile, name, username, phone };
+        
         try {
             await db.collection('users').doc(currentUser.uid).set({ profile: appData.profile }, { merge: true });
-            alert(currentLang === 'en' ? "Profile Saved Successfully!" : "പ്രൊഫൈൽ സേവ് ചെയ്തു!");
-            goBack();
-        } catch(error) { alert("Error saving profile."); }
+            
+            if (newPassword && newPassword.trim() !== '') {
+                await currentUser.updatePassword(newPassword);
+                document.getElementById('profile-password').value = '';
+            }
+
+            updateHeaderProfile();
+            showToast(currentLang === 'en' ? "Saved successfully" : "സേവ് ചെയ്തു!");
+            
+            setTimeout(() => { goBack(); }, 1200);
+
+        } catch(error) { 
+            alert("Error saving profile: " + error.message); 
+        }
     };
 
     const saveGoals = async () => {
@@ -224,9 +325,9 @@ const app = (() => {
         appData.goals = { targetSessions: target };
         try {
             await db.collection('users').doc(currentUser.uid).set({ goals: appData.goals }, { merge: true });
-            alert(currentLang === 'en' ? "Goals Saved Successfully!" : "ലക്ഷ്യങ്ങൾ സേവ് ചെയ്തു!");
-            updateDashboard(); // Instantly update the home UI
-            goBack();
+            showToast(currentLang === 'en' ? "Goals Saved Successfully!" : "ലക്ഷ്യങ്ങൾ സേവ് ചെയ്തു!");
+            updateDashboard(true);
+            setTimeout(() => { goBack(); }, 1200);
         } catch(error) { alert("Error saving goals."); }
     };
 
@@ -241,7 +342,8 @@ const app = (() => {
             detailed_feedback: "Detailed Feedback", done: "Done", progress: "Your Progress", history: "Practice History", settings: "Settings", dark_mode: "Dark Mode",
             nav_home: "Home", nav_progress: "Progress", nav_history: "History", nav_settings: "Settings", verses: "Verses", verse: "Verse", mic_error: "Microphone access denied.",
             recording_in_progress: "🔴 Recording in progress...",
-            todays_goal: "Today's Goal", completed: "Completed", daily_recommendation: "Daily Recommendation", goals_title: "Goals & Improvement", goals_sub: "Set your daily practice targets to build consistency.", target_sessions: "Daily Target Sessions", save_goals: "Save Goals"
+            todays_goal: "Today's Goal", completed: "Completed", daily_recommendation: "Daily Recommendation", goals_title: "Goals & Improvement", goals_sub: "Set your daily practice targets to build consistency.", target_sessions: "Daily Target Sessions", save_goals: "Save Goals",
+            prev_score: "Last Score", continue_practice: "Continue Practice", last_recited: "Last Recited"
         },
         ml: {
             app_title: "ഖുർആൻ AI കോച്ച്", hero_title: "പരിശീലിക്കുക. മെച്ചപ്പെടുത്തുക.<br><span class='text-primary'>ആത്മവിശ്വാസത്തോടെ പാരായണം ചെയ്യുക.</span>", hero_sub: "നിങ്ങളുടെ സ്വന്തം AI ഖുർആൻ പാരായണ സഹായി.",
@@ -253,7 +355,8 @@ const app = (() => {
             detailed_feedback: "വിശദമായ ഫീഡ്‌ബാക്ക്", done: "പൂർത്തിയായി", progress: "നിങ്ങളുടെ പുരോഗതി", history: "പരിശീലന ചരിത്രം", settings: "ക്രമീകരണങ്ങൾ", dark_mode: "ഡാർക്ക് മോഡ്",
             nav_home: "ഹോം", nav_progress: "പുരോഗതി", nav_history: "ചരിത്രം", nav_settings: "ക്രമീകരണങ്ങൾ", verses: "വരികൾ", verse: "വരി", mic_error: "മൈക്രോഫോൺ ഉപയോഗിക്കാൻ അനുമതിയില്ല.",
             recording_in_progress: "🔴 റെക്കോർഡിംഗ് നടക്കുന്നു...",
-            todays_goal: "ഇന്നത്തെ ലക്ഷ്യം", completed: "പൂർത്തിയായി", daily_recommendation: "ഇന്നത്തെ നിർദ്ദേശം", goals_title: "ലക്ഷ്യങ്ങളും പുരോഗതിയും", goals_sub: "തുടർച്ചയായ പരിശീലനത്തിനായി ലക്ഷ്യങ്ങൾ ക്രമീകരിക്കുക.", target_sessions: "പ്രതിദിന ലക്ഷ്യം (സെഷനുകൾ)", save_goals: "ലക്ഷ്യങ്ങൾ സേവ് ചെയ്യുക"
+            todays_goal: "ഇന്നത്തെ ലക്ഷ്യം", completed: "പൂർത്തിയായി", daily_recommendation: "ഇന്നത്തെ നിർദ്ദേശം", goals_title: "ലക്ഷ്യങ്ങളും പുരോഗതിയും", goals_sub: "തുടർച്ചയായ പരിശീലനത്തിനായി ലക്ഷ്യങ്ങൾ ക്രമീകരിക്കുക.", target_sessions: "പ്രതിദിന ലക്ഷ്യം (സെഷനുകൾ)", save_goals: "ലക്ഷ്യങ്ങൾ സേവ് ചെയ്യുക",
+            prev_score: "മുൻപത്തെ സ്കോർ", continue_practice: "തുടർന്നു വായിക്കുക", last_recited: "അവസാനം വായിച്ചത്"
         }
     };
 
@@ -307,7 +410,7 @@ const app = (() => {
         els.langBtn.textContent = currentLang === 'en' ? 'മലയാളം' : 'English';
         applyLanguage();
         renderSurahList(surahs);
-        updateDashboard(); 
+        updateDashboard(false); 
         updateDateDisplay();
     };
 
@@ -347,15 +450,20 @@ const app = (() => {
         const targetView = document.getElementById(viewId);
         if (targetView) targetView.classList.add('active');
 
-        // SCROLL FIX: Instantly snap to the top when switching views
         window.scrollTo(0, 0);
 
-        if (viewId === 'record-view' || viewId === 'analysis-view' || viewId === 'result-view' || viewId === 'auth-view') {
-            if(els.backBtnContainer && viewId !== 'auth-view') els.backBtnContainer.style.display = 'block';
-            if (els.mainBottomNav) els.mainBottomNav.style.display = 'none';
-        } else {
-            if(els.backBtnContainer) els.backBtnContainer.style.display = 'none';
+        if (['home-view', 'progress-view', 'history-view', 'settings-view', 'surah-view'].includes(viewId)) {
             if (els.mainBottomNav) els.mainBottomNav.style.display = 'flex';
+        } else {
+            if (els.mainBottomNav) els.mainBottomNav.style.display = 'none';
+        }
+
+        if (['home-view', 'progress-view', 'history-view', 'settings-view'].includes(viewId)) {
+            if(els.backBtnContainer) els.backBtnContainer.style.display = 'none';
+            if(document.getElementById('header-profile-pill')) document.getElementById('header-profile-pill').style.display = 'flex';
+        } else {
+            if(els.backBtnContainer) els.backBtnContainer.style.display = 'block';
+            if(document.getElementById('header-profile-pill')) document.getElementById('header-profile-pill').style.display = 'none';
         }
 
         if (viewId === 'record-view') {
@@ -367,10 +475,19 @@ const app = (() => {
         if (viewId !== currentView) {
             if (['home-view', 'progress-view', 'history-view', 'settings-view'].includes(viewId)) {
                 viewHistory = [viewId]; 
-                if(viewId === 'home-view' || viewId === 'history-view') updateDashboard(); 
-                if(viewId === 'progress-view') { updateDashboard(); updateDateDisplay(); }
             } else if (!isBack) {
                 viewHistory.push(viewId); 
+            }
+
+            if(viewId === 'home-view') {
+                updateDashboard(true); 
+            } else if(viewId === 'history-view') {
+                updateDashboard(false);
+            } else if(viewId === 'progress-view') { 
+                updateDashboard(false); 
+                updateDateDisplay(); 
+            } else if(viewId === 'surah-view') {
+                renderSurahList(surahs);
             }
         }
         currentView = viewId;
@@ -391,18 +508,35 @@ const app = (() => {
     };
 
     const renderSurahList = (data) => {
-        const verseText = i18n[currentLang].verses;
         if(els.surahList) {
+            if (!data || data.length === 0) {
+                els.surahList.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-sec);">Loading Quran data...</div>`;
+                return;
+            }
+
+            const verseText = i18n[currentLang].verses;
             els.surahList.innerHTML = data.map(s => {
                 const displayName = currentLang === 'en' ? s.nameEn : (s.nameMl || s.nameEn);
+                
+                const lastSession = appData.history.find(h => h.surahId === s.id);
+                const scoreBadge = lastSession 
+                    ? `<span style="background: rgba(0, 230, 184, 0.15); color: var(--primary); font-weight:700; font-size:0.85rem; padding: 4px 8px; border-radius: 8px;">${lastSession.score}%</span>` 
+                    : ``;
+
                 return `
                 <div class="surah-item glass-card" onclick="app.selectSurah(${s.id})">
                     <div class="recent-info">
                         <span class="surah-number">${s.number}</span>
-                        <div><h3>${displayName}</h3><p>${s.verses} ${verseText}</p></div>
+                        <div>
+                            <h3>${displayName}</h3>
+                            <p>${s.verses} ${verseText}</p>
+                        </div>
                     </div>
-                    <div class="surah-item-ar">${s.nameAr}</div>
-                </div>`
+                    <div style="display:flex; align-items:center; gap: 10px;">
+                        ${scoreBadge}
+                        <div class="surah-item-ar">${s.nameAr}</div>
+                    </div>
+                </div>`;
             }).join('');
         }
     };
@@ -415,20 +549,64 @@ const app = (() => {
 
     const toArabicNumeral = (n) => n.toString().replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
 
-    const selectSurah = async (id) => {
+    const resumeBookmark = () => {
+        if (appData.bookmark && appData.bookmark.surahId) {
+            selectSurah(appData.bookmark.surahId, appData.bookmark.verse);
+        }
+    };
+
+    const selectSurah = async (id, targetVerse = null) => {
         if(els.initialLoader) els.initialLoader.classList.remove('hidden');
         selectedSurah = surahs.find(s => s.id === id);
+        
         try {
             const res = await fetch(`https://api.alquran.cloud/v1/surah/${id}/quran-uthmani`);
             const data = await res.json();
-            const ayahText = data.data.ayahs.map(a => a.text + ` <span style="color:var(--primary);">﴿${toArabicNumeral(a.numberInSurah)}﴾</span>`).join(' &nbsp; ');
+            
+            const isFatiha = id === 1;
+            const isTawbah = id === 9;
+
+            const bismillahEl = document.getElementById('practice-bismillah');
+            if (bismillahEl) {
+                bismillahEl.style.display = (isFatiha || isTawbah) ? 'none' : 'block';
+            }
+
+            const ayahText = data.data.ayahs.map((a, index) => {
+                let cleanText = a.text;
+                if (index === 0 && !isFatiha && !isTawbah) {
+                    cleanText = cleanText.replace(/^بِسْمِ\s+ٱللَّهِ\s+ٱلرَّحْمَٰنِ\s+ٱلرَّحِيمِ\s*/, '')
+                                         .replace(/^بِسْمِ\s+اللَّهِ\s+الرَّحْمَٰنِ\s+الرَّحِيمِ\s*/, '');
+                }
+                return `<span id="verse-${a.numberInSurah}" style="border-radius: 8px; transition: background-color 1s ease;">${cleanText} <span style="color:var(--primary);">﴿${toArabicNumeral(a.numberInSurah)}﴾</span></span>`;
+            }).join(' &nbsp; ');
+
             document.getElementById('record-surah-text').innerHTML = ayahText;
+            
+            const lastSession = appData.history.find(h => h.surahId === id);
+            const prevScoreText = lastSession 
+                ? ` • ${i18n[currentLang].prev_score}: ${lastSession.score}%` 
+                : '';
+
             els.recordSurahName.textContent = currentLang === 'en' ? selectedSurah.nameEn : (selectedSurah.nameMl || selectedSurah.nameEn);
-            document.getElementById('record-surah-meta').textContent = `${data.data.numberOfAyahs} ${i18n[currentLang].verses}`;
-            document.getElementById('practice-bismillah').style.display = (id === 1 || id === 9) ? 'none' : 'block';
+            document.getElementById('record-surah-meta').textContent = `${data.data.numberOfAyahs} ${i18n[currentLang].verses}${prevScoreText}`;
+
             resetRecording();
             if(els.initialLoader) els.initialLoader.classList.add('hidden');
             navigateTo('record-view');
+
+            if (targetVerse) {
+                setTimeout(() => {
+                    const targetEl = document.getElementById(`verse-${targetVerse}`);
+                    if (targetEl) {
+                        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        targetEl.style.backgroundColor = 'rgba(15, 174, 150, 0.25)';
+                        setTimeout(() => {
+                            targetEl.style.backgroundColor = 'transparent';
+                        }, 2000);
+                    }
+                }, 400); 
+            }
+
         } catch(e) {
             if(els.initialLoader) els.initialLoader.classList.add('hidden');
             alert("Error loading Surah text from API.");
@@ -525,6 +703,7 @@ const app = (() => {
             return;
         }
         clearInterval(recordingTimer);
+        const recordingDuration = seconds; 
         if (els.recordingPopup) els.recordingPopup.classList.add('hidden');
 
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
@@ -558,26 +737,26 @@ const app = (() => {
                     
                     const aiResult = await response.json();
                     stopLoadingAnimation();
-                    generateAIResults(aiResult.data);
+                    generateAIResults(aiResult.data, recordingDuration);
                     navigateTo('result-view');
                 } catch (error) {
                     console.error("Failed to send audio to backend:", error);
                     stopLoadingAnimation();
-                    simulateAnalysis(); 
+                    simulateAnalysis(recordingDuration); 
                 }
             };
             mediaRecorder.stop();
         } else {
             navigateTo('analysis-view');
-            simulateAnalysis();
+            simulateAnalysis(recordingDuration);
         }
     };
 
-    const simulateAnalysis = () => {
+    const simulateAnalysis = (recDuration = 0) => {
         startLoadingAnimation();
         setTimeout(() => { 
             stopLoadingAnimation();
-            generateAIResults(); 
+            generateAIResults(null, recDuration); 
             navigateTo('result-view'); 
         }, 4500);
     };
@@ -594,18 +773,24 @@ const app = (() => {
                 feedback: []
             };
             historicalData.isHistory = true; 
-            generateAIResults(historicalData);
+            generateAIResults(historicalData, session.duration || 0);
             navigateTo('result-view');
         }
     };
 
-    const generateAIResults = (realData = null) => {
+    const generateAIResults = (realData = null, recDuration = 0) => {
         els.resultSurahName.textContent = selectedSurah ? (currentLang === 'en' ? selectedSurah.nameEn : (selectedSurah.nameMl || selectedSurah.nameEn)) : "Practice Session";
 
         const overall = realData ? realData.overallScore : Math.floor(Math.random() * (99 - 85 + 1) + 85);
         const pronun = realData ? realData.pronunciation : 92;
         const memor = realData ? realData.memorization : 98;
         const tajw = realData ? realData.tajweed : 90;
+
+        let lastVerseRecited = 1;
+        if (realData && realData.feedback && realData.feedback.length > 0) {
+            const verses = realData.feedback.map(f => parseInt(f.verse.replace(/\D/g, ''))).filter(v => !isNaN(v));
+            if (verses.length > 0) lastVerseRecited = Math.max(...verses);
+        }
 
         if(selectedSurah && (!realData || !realData.isHistory)) {
             const newEntry = {
@@ -614,11 +799,20 @@ const app = (() => {
                 surahNameEn: selectedSurah.nameEn,
                 surahNameMl: selectedSurah.nameMl || selectedSurah.nameEn,
                 score: overall,
+                duration: recDuration, 
                 date: new Date().toISOString(),
                 fullData: realData
             };
             appData.history.unshift(newEntry);
+            
+            appData.bookmark = { 
+                surahId: selectedSurah.id, 
+                verse: lastVerseRecited,
+                nameEn: selectedSurah.nameEn,
+                nameMl: selectedSurah.nameMl || selectedSurah.nameEn
+            };
             saveData(newEntry); 
+            renderSurahList(surahs); 
         }
 
         const overallTextElement = document.getElementById('score-overall-text');
@@ -673,7 +867,6 @@ const app = (() => {
         const recReasonEl = document.getElementById('rec-surah-reason');
         const recCard = document.getElementById('rec-card');
         
-        // 1. Look for poor performance in recent history
         const weakSession = appData.history.find(h => h.score < 85);
         let recommendedSurah;
         let reasonTextEn = "";
@@ -684,7 +877,6 @@ const app = (() => {
             reasonTextEn = `Improve your ${weakSession.score}% accuracy`;
             reasonTextMl = `നിങ്ങളുടെ ${weakSession.score}% കൃത്യത മെച്ചപ്പെടുത്തുക`;
         } else {
-            // 2. Pick a "Surah of the Day" based on the calendar date
             const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
             const surahIndex = dayOfYear % surahs.length;
             recommendedSurah = surahs[surahIndex];
@@ -701,7 +893,28 @@ const app = (() => {
     };
 
     const updateDashboard = (animate = false) => {
-        // --- DYNAMIC GOALS LOGIC ---
+        
+        // INSTANT BOOKMARK RENDER
+        const bookmarkSection = document.getElementById('continue-practice-section');
+        const bookmarkName = document.getElementById('bookmark-surah-name');
+        
+        if (bookmarkSection && bookmarkName && appData.bookmark && appData.bookmark.surahId) {
+            let bName = currentLang === 'en' ? "Surah" : "സൂറത്ത്";
+            
+            if (appData.bookmark.nameEn) {
+                bName = currentLang === 'en' ? appData.bookmark.nameEn : (appData.bookmark.nameMl || appData.bookmark.nameEn);
+            } else if (surahs.length > 0) {
+                const bSurah = surahs.find(s => s.id === appData.bookmark.surahId);
+                if (bSurah) bName = currentLang === 'en' ? bSurah.nameEn : (bSurah.nameMl || bSurah.nameEn);
+            }
+
+            if (bName !== "Surah" || surahs.length > 0) {
+                const verseLabel = currentLang === 'en' ? 'Verse' : 'വരി';
+                bookmarkName.textContent = `${bName} • ${verseLabel} ${appData.bookmark.verse || 1}`;
+                bookmarkSection.style.display = 'block';
+            }
+        }
+
         const todayStr = new Date().toDateString();
         const todaySessions = appData.history.filter(h => new Date(h.date).toDateString() === todayStr).length;
         const targetSessions = appData.goals ? appData.goals.targetSessions : 5;
@@ -713,9 +926,15 @@ const app = (() => {
         const goalRingTextEl = document.getElementById('goal-ring-text');
 
         if (goalTextEl) goalTextEl.innerHTML = `${todaySessions} / ${targetSessions} <span class="text-secondary" style="font-size:0.8rem; font-weight:normal;">Sessions</span>`;
-        if (goalBarEl) goalBarEl.style.width = `${progressPct}%`;
-        if (goalRingTextEl) goalRingTextEl.textContent = `${progressPct}%`;
-        if (goalRingEl) goalRingEl.style.background = `conic-gradient(var(--primary) ${progressPct}%, rgba(255,255,255,0.05) 0)`;
+        
+        // INSTANT GOAL ANIMATION
+        if (animate) {
+            animateGoal(goalRingTextEl, goalBarEl, goalRingEl, progressPct, 1200);
+        } else {
+            if (goalRingTextEl) goalRingTextEl.textContent = `${progressPct}%`;
+            if (goalBarEl) { goalBarEl.style.transition = 'none'; goalBarEl.style.width = `${progressPct}%`; }
+            if (goalRingEl) goalRingEl.style.background = `conic-gradient(var(--primary) ${progressPct}%, rgba(255,255,255,0.05) 0)`;
+        }
 
         generateDailyRecommendation();
 
@@ -732,8 +951,7 @@ const app = (() => {
 
         const statValues = document.querySelectorAll('.stat-value');
         if(statValues.length >= 3) {
-            if (animate && !hasAnimatedDashboard) {
-                hasAnimatedDashboard = true; 
+            if (animate) {
                 animateNumber(statValues[0], 0, streak, 1200, ""); 
                 animateNumber(statValues[1], 0, avgScore, 1200, "%"); 
                 animateNumber(statValues[2], 0, totalSessions, 1200, ""); 
@@ -786,11 +1004,16 @@ const app = (() => {
             els.historyList.innerHTML = dataList.map(h => {
                 const name = currentLang === 'en' ? h.surahNameEn : (h.surahNameMl || h.surahNameEn);
                 const dateStr = new Date(h.date).toLocaleDateString(currentLang === 'en' ? 'en-US' : 'ml-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const durFormatted = formatLifetimeTime(h.duration || 0);
+
                 return `
                 <div class="glass-card history-item" style="margin-bottom: 0.75rem;" onclick="app.viewPastSession('${h.id}')">
-                    <div><h4>${name}</h4><p class="history-item-date">${dateStr}</p></div>
+                    <div>
+                        <h4>${name}</h4>
+                        <p class="history-item-date">${dateStr} • ⏱️ ${durFormatted}</p>
+                    </div>
                     <div class="text-primary" style="font-size: 1.25rem; font-weight: 700;">${h.score}%</div>
-                </div>`
+                </div>`;
             }).join('');
         }
     };
@@ -845,19 +1068,35 @@ const app = (() => {
 
     const renderProgressDetails = (records) => {
         if (records.length === 0) {
-            els.progressDetails.innerHTML = `<p class="text-center text-secondary mt-2">${currentLang === 'en' ? 'No practice data for this selection.' : 'ഈ തീയതിയിൽ പരിശീലന വിവരങ്ങളില്ല.'}</p>`;
+            els.progressDetails.innerHTML = `<p class="text-center text-secondary mt-2">${currentLang === 'en' ? 'No practice data for this date.' : 'ഈ തീയതിയിൽ പരിശീലന വിവരങ്ങളില്ല.'}</p>`;
             return;
         }
 
-        els.progressDetails.innerHTML = records.map(h => {
+        const dayTotalSec = records.reduce((sum, item) => sum + (item.duration || 0), 0);
+        const dayFormattedTime = formatLifetimeTime(dayTotalSec);
+
+        const summaryHeader = `
+            <div class="glass-card mb-3" style="padding: 12px 15px; display:flex; justify-content:space-between; align-items:center;">
+                <span class="text-secondary" style="font-size:0.85rem;">Date Recited Time</span>
+                <span class="text-primary" style="font-weight:700; font-size:1rem;">⏱️ ${dayFormattedTime}</span>
+            </div>`;
+
+        const listHTML = records.map(h => {
             const name = currentLang === 'en' ? h.surahNameEn : (h.surahNameMl || h.surahNameEn);
             const timeStr = new Date(h.date).toLocaleTimeString(currentLang === 'en' ? 'en-US' : 'ml-IN', { hour: '2-digit', minute: '2-digit' });
+            const sessionDuration = formatLifetimeTime(h.duration || 0);
+
             return `
             <div class="glass-card history-item" style="margin-bottom: 0.75rem;" onclick="app.viewPastSession('${h.id}')">
-                <div><h4>${name}</h4><p class="history-item-date">${timeStr}</p></div>
+                <div>
+                    <h4>${name}</h4>
+                    <p class="history-item-date">${timeStr} • ⏱️ ${sessionDuration}</p>
+                </div>
                 <div class="text-primary" style="font-size: 1.25rem; font-weight: 700;">${h.score}%</div>
             </div>`;
         }).join('');
+
+        els.progressDetails.innerHTML = summaryHeader + listHTML;
     };
 
     const changeDate = (days) => {
@@ -899,7 +1138,7 @@ const app = (() => {
     return {
         navigateTo, goBack, filterSurahs, filterHistory, filterProgress, selectSurah, 
         toggleRecording, cancelRecording, finishRecording, saveProfile, saveGoals,
-        toggleLanguage, toggleTheme, viewPastSession, switchAuth, googleLogin,
+        toggleLanguage, toggleTheme, viewPastSession, switchAuth, googleLogin, resumeBookmark,
         login, signup, logout, changeDate, selectCustomDate, switchProgressTab
     };
 })();
