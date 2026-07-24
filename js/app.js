@@ -1,6 +1,6 @@
 /**
  * Quran AI Coach - Complete Updated JS
- * Fixes: Fixed State Leakage / Cache Wiping on Logout for Multi-Account Security
+ * Fixes: Real Backend Errors only (No Fake Scores), iOS Audio Hanging Fixed.
  */
 
 const firebaseConfig = {
@@ -136,22 +136,38 @@ const app = (() => {
         }
     };
 
+    // FIXED: Added timeout so iOS Safari doesn't freeze the app forever
     const checkIfAudioHasSound = (audioBlob) => {
         return new Promise((resolve) => {
+            const timeout = setTimeout(() => resolve(true), 1500); 
             const reader = new FileReader();
             reader.readAsArrayBuffer(audioBlob);
-            reader.onloadend = async () => {
+            reader.onloadend = () => {
                 try {
-                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    const audioBuffer = await audioCtx.decodeAudioData(reader.result);
-                    const rawData = audioBuffer.getChannelData(0);
-                    let sum = 0;
-                    for (let i = 0; i < rawData.length; i++) {
-                        sum += rawData[i] * rawData[i];
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioContext) {
+                        clearTimeout(timeout);
+                        return resolve(true);
                     }
-                    const rms = Math.sqrt(sum / rawData.length);
-                    resolve(rms > 0.005);
+                    const audioCtx = new AudioContext();
+                    audioCtx.decodeAudioData(reader.result, 
+                        (audioBuffer) => {
+                            clearTimeout(timeout);
+                            const rawData = audioBuffer.getChannelData(0);
+                            let sum = 0;
+                            for (let i = 0; i < rawData.length; i++) {
+                                sum += rawData[i] * rawData[i];
+                            }
+                            const rms = Math.sqrt(sum / rawData.length);
+                            resolve(rms > 0.005);
+                        },
+                        (err) => {
+                            clearTimeout(timeout);
+                            resolve(true);
+                        }
+                    );
                 } catch (e) {
+                    clearTimeout(timeout);
                     resolve(true); 
                 }
             };
@@ -243,36 +259,30 @@ const app = (() => {
         } catch (e) { console.error("Failed to load surahs", e); }
     };
 
-    // --- SECURITY FIX: WIPE STATE BEFORE LOADING NEW USER DATA ---
     const loadUserData = async (user) => {
         currentUser = user;
         try {
-            // 1. Reset state completely so old user's data doesn't leak
             appData.profile = { name: user.displayName || '' };
             appData.goals = { targetSessions: 5 };
             appData.bookmark = null;
             appData.history = [];
             
-            // 2. Clear out any leftover form fields from previous user
             if(document.getElementById('profile-name')) document.getElementById('profile-name').value = '';
             if(document.getElementById('profile-username')) document.getElementById('profile-username').value = '';
             if(document.getElementById('profile-phone')) document.getElementById('profile-phone').value = '';
             
-            // 3. Fetch New User's Data
             const userDoc = await db.collection('users').doc(user.uid).get();
             if (userDoc.exists) {
                 if (userDoc.data().profile) appData.profile = userDoc.data().profile;
                 if (userDoc.data().goals) appData.goals = userDoc.data().goals;
                 
-                // Securely fetch bookmark
                 if (userDoc.data().bookmark) {
                     appData.bookmark = userDoc.data().bookmark;
                     localStorage.setItem('quranCachedBookmark', JSON.stringify(appData.bookmark));
                 } else {
-                    localStorage.removeItem('quranCachedBookmark'); // Destroy old cached bookmark
+                    localStorage.removeItem('quranCachedBookmark'); 
                 }
                 
-                // Populate forms securely
                 if(document.getElementById('profile-name')) document.getElementById('profile-name').value = appData.profile.name || '';
                 if(document.getElementById('profile-username')) document.getElementById('profile-username').value = appData.profile.username || '';
                 if(document.getElementById('profile-phone')) document.getElementById('profile-phone').value = appData.profile.phone || '';
@@ -316,12 +326,10 @@ const app = (() => {
         } catch (error) { console.error("Error saving data:", error); }
     };
 
-    // --- SECURITY FIX: WIPE ALL LOCAL CACHE ON LOGOUT ---
     const logout = () => { 
         localStorage.removeItem('quranCachedHistory');
         localStorage.removeItem('quranCachedBookmark');
         
-        // Reset local state variables
         appData = {
             history: [],
             theme: 'dark',
@@ -330,7 +338,6 @@ const app = (() => {
             bookmark: null 
         };
         
-        // Reset UI Elements
         updateHeaderProfile();
         const bookmarkSection = document.getElementById('continue-practice-section');
         if(bookmarkSection) bookmarkSection.style.display = 'none';
@@ -388,7 +395,7 @@ const app = (() => {
             analysis_complete: "Analysis Complete", overall_accuracy: "Overall Accuracy", pronunciation: "Pronunciation", memorization: "Memorization", tajweed: "Tajweed",
             detailed_feedback: "Detailed Feedback", done: "Done", progress: "Your Progress", history: "Practice History", settings: "Settings", dark_mode: "Dark Mode",
             nav_home: "Home", nav_progress: "Progress", nav_history: "History", nav_settings: "Settings", verses: "Verses", verse: "Verse", mic_error: "Microphone access denied.",
-            recording_in_progress: "🔴 Recording in progress...",
+            recording_in_progress: "Recording in progress...",
             todays_goal: "Today's Goal", completed: "Completed", daily_recommendation: "Daily Recommendation", goals_title: "Goals & Improvement", goals_sub: "Set your daily practice targets to build consistency.", target_sessions: "Daily Target Sessions", save_goals: "Save Goals",
             prev_score: "Last Score", continue_practice: "Continue Practice", last_recited: "Last Recited"
         },
@@ -401,7 +408,7 @@ const app = (() => {
             analysis_complete: "പരിശോധന പൂർത്തിയായി", overall_accuracy: "മൊത്തത്തിലുള്ള കൃത്യത", pronunciation: "ഉച്ചാരണം", memorization: "മനഃപാഠം", tajweed: "തജ്‌വീദ്",
             detailed_feedback: "വിശദമായ ഫീഡ്‌ബാക്ക്", done: "പൂർത്തിയായി", progress: "നിങ്ങളുടെ പുരോഗതി", history: "പരിശീലന ചരിത്രം", settings: "ക്രമീകരണങ്ങൾ", dark_mode: "ഡാർക്ക് മോഡ്",
             nav_home: "ഹോം", nav_progress: "പുരോഗതി", nav_history: "ചരിത്രം", nav_settings: "ക്രമീകരണങ്ങൾ", verses: "വരികൾ", verse: "വരി", mic_error: "മൈക്രോഫോൺ ഉപയോഗിക്കാൻ അനുമതിയില്ല.",
-            recording_in_progress: "🔴 റെക്കോർഡിംഗ് നടക്കുന്നു...",
+            recording_in_progress: "റെക്കോർഡിംഗ് നടക്കുന്നു...",
             todays_goal: "ഇന്നത്തെ ലക്ഷ്യം", completed: "പൂർത്തിയായി", daily_recommendation: "ഇന്നത്തെ നിർദ്ദേശം", goals_title: "ലക്ഷ്യങ്ങളും പുരോഗതിയും", goals_sub: "തുടർച്ചയായ പരിശീലനത്തിനായി ലക്ഷ്യങ്ങൾ ക്രമീകരിക്കുക.", target_sessions: "പ്രതിദിന ലക്ഷ്യം (സെഷനുകൾ)", save_goals: "ലക്ഷ്യങ്ങൾ സേവ് ചെയ്യുക",
             prev_score: "മുൻപത്തെ സ്കോർ", continue_practice: "തുടർന്നു വായിക്കുക", last_recited: "അവസാനം വായിച്ചത്"
         }
@@ -742,6 +749,7 @@ const app = (() => {
         steps.forEach(s => { s.classList.remove('active'); s.classList.add('done'); });
     };
 
+    // --- FIX: NO MORE FAKE SCORES. STRICT ERROR HANDLING ---
     const finishRecording = () => {
         if (seconds === 0) {
             cancelRecording();
@@ -787,23 +795,17 @@ const app = (() => {
                 } catch (error) {
                     console.error("Failed to send audio to backend:", error);
                     stopLoadingAnimation();
-                    simulateAnalysis(recordingDuration); 
+                    // SHOW ERROR ALERT INSTEAD OF FAKE RESULTS
+                    alert(currentLang === 'en' ? "Server timeout or AI connection error. Please try again." : "സെർവർ എറർ. ദയവായി വീണ്ടും ശ്രമിക്കുക.");
+                    resetRecording();
+                    goBack();
                 }
             };
             mediaRecorder.stop();
         } else {
-            navigateTo('analysis-view');
-            simulateAnalysis(recordingDuration);
+            resetRecording();
+            goBack();
         }
-    };
-
-    const simulateAnalysis = (recDuration = 0) => {
-        startLoadingAnimation();
-        setTimeout(() => { 
-            stopLoadingAnimation();
-            generateAIResults(null, recDuration); 
-            navigateTo('result-view'); 
-        }, 4500);
     };
 
     const viewPastSession = (id) => {
@@ -826,10 +828,10 @@ const app = (() => {
     const generateAIResults = (realData = null, recDuration = 0) => {
         els.resultSurahName.textContent = selectedSurah ? (currentLang === 'en' ? selectedSurah.nameEn : (selectedSurah.nameMl || selectedSurah.nameEn)) : "Practice Session";
 
-        const overall = realData ? realData.overallScore : Math.floor(Math.random() * (99 - 85 + 1) + 85);
-        const pronun = realData ? realData.pronunciation : 92;
-        const memor = realData ? realData.memorization : 98;
-        const tajw = realData ? realData.tajweed : 90;
+        const overall = realData ? realData.overallScore : 0;
+        const pronun = realData ? realData.pronunciation : 0;
+        const memor = realData ? realData.memorization : 0;
+        const tajw = realData ? realData.tajweed : 0;
 
         let lastVerseRecited = 1;
         if (realData && realData.feedback && realData.feedback.length > 0) {
@@ -888,7 +890,7 @@ const app = (() => {
             if(vt) animateNumber(vt, 0, tajw, 1200, "%");
         }, 300);
 
-        const feedbacks = realData && realData.feedback ? realData.feedback : [{ type: 'perfect', verse: `Verse 1`, msgEn: 'Perfect articulation.', msgMl: 'ഉച്ചാരണം കൃത്യമാണ്.' }];
+        const feedbacks = realData && realData.feedback ? realData.feedback : [{ type: 'error', verse: `System`, msgEn: 'No valid data returned.', msgMl: 'ഡാറ്റ ലഭ്യമല്ല.' }];
         
         if(els.feedbackList) {
             els.feedbackList.innerHTML = feedbacks.map(f => {

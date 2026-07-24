@@ -2,12 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const fs = require('fs');
-const path = require('path');
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
 require('dotenv').config();
-
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 const { GoogleGenerativeAI, SchemaType } = require('@google/generative-ai');
 
@@ -30,6 +25,7 @@ if (!apiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
+// Prioritizing the newest standard models for maximum intelligence
 const FALLBACK_MODELS = [
     "gemini-3.1-flash-lite",
     "gemini-2.5-flash",
@@ -65,22 +61,6 @@ const responseSchema = {
     required: ["overallScore", "pronunciation", "memorization", "tajweed", "feedback"]
 };
 
-async function normalizeAudio(inputPath) {
-    const outputPath = path.join('uploads', `processed_${Date.now()}.wav`);
-    return new Promise((resolve) => {
-        ffmpeg(inputPath)
-            .toFormat('wav')
-            .audioChannels(1) 
-            .audioFrequency(16000) 
-            .on('end', () => resolve(outputPath))
-            .on('error', (err) => {
-                console.warn("⚠️ FFmpeg conversion warning, utilizing raw file:", err);
-                resolve(inputPath);
-            })
-            .save(outputPath);
-    });
-}
-
 async function fetchSurahReferenceText(surahId) {
     try {
         const response = await fetch(`https://api.alquran.cloud/v1/surah/${surahId}/ar.tajweed`);
@@ -96,7 +76,6 @@ async function fetchSurahReferenceText(surahId) {
 
 app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
     let rawAudioPath = req.file ? req.file.path : null;
-    let processedAudioPath = null;
 
     try {
         if (!rawAudioPath) {
@@ -108,32 +87,31 @@ app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
 
         console.log(`\n🎙️ Analyzing Audio for Surah ID: ${surahId}`);
 
-        processedAudioPath = await normalizeAudio(rawAudioPath);
-        const audioBuffer = fs.readFileSync(processedAudioPath);
+        // BYPASS FFMPEG DIRECTLY - Solves Render.com crash/hang issues
+        const audioBuffer = fs.readFileSync(rawAudioPath);
         const base64Audio = audioBuffer.toString('base64');
+        const mimeType = req.file.mimetype === 'application/octet-stream' ? 'audio/webm' : req.file.mimetype;
+
         const groundTruthText = await fetchSurahReferenceText(surahId);
 
-        // MAXIMUM ACCURACY PROMPT
+        // HYPER-STRICT PROMPT
         const promptText = `
 You are a highly strict, elite Master Qari and Tajweed Examiner. 
-Your goal is 100% flawless error detection. Do NOT hallucinate errors, and do NOT ignore subtle mistakes.
+Your goal is 100% flawless error detection.
 
 ### REFERENCE TEXT FOR SURAH ID ${surahId}:
 ${groundTruthText}
 
-### MANDATORY CHAIN-OF-THOUGHT EVALUATION:
-To achieve maximum accuracy, you MUST perform this mental check before scoring:
-1. AUDIO ISOLATION: Listen to the audio. Which specific verses did the user actually attempt? Ignore the rest of the text.
-2. LITERAL TRANSCRIPTION: Mentally transcribe exactly what the user pronounced. 
-3. WORD-BY-WORD ALIGNMENT: Compare your literal transcription to the Reference Text. 
-   - Did they mix 'س' (Seen) and 'ص' (Saad)?
-   - Did they mix 'ح' (Haa) and 'ه' (Haa)?
-   - Did they mix 'ذ' (Thal) and 'ز' (Zay)?
-   - Did they miss a Madd (elongation) or Ghunnah (nasalization) indicated by the Tajweed markup?
+### MANDATORY EVALUATION STEPS:
+1. AUDIO ISOLATION: Listen to the audio. Identify the EXACT verses the user actually recited. Ignore unread verses.
+2. WORD-BY-WORD ALIGNMENT: 
+   - Flag if they mix heavy/light letters (e.g. 'س' vs 'ص', 'ح' vs 'ه', 'ذ' vs 'ز').
+   - Flag if they miss a Madd (elongation) or Ghunnah (nasalization).
+   - Flag skipped words.
 
 ### CRITICAL ERROR PHRASING RULES:
 When reporting an error, you MUST state exactly what the user did wrong.
-- CORRECT PHRASING: "You pronounced the letter 'ه' instead of the correct letter 'ح' in the word 'الرَّحِيمِ'."
+- CORRECT: "You pronounced the letter 'ه' instead of the correct letter 'ح' in the word 'الرَّحِيمِ'."
 - NEVER state that a wrong letter exists inside the reference word itself.
 
 ### SCORING SYSTEM:
@@ -160,7 +138,7 @@ ${language === 'ml'
                         { 
                             role: "user", 
                             parts: [
-                                { inlineData: { mimeType: "audio/wav", data: base64Audio } },
+                                { inlineData: { mimeType: mimeType, data: base64Audio } },
                                 { text: promptText }
                             ]
                         }
@@ -168,7 +146,7 @@ ${language === 'ml'
                     generationConfig: { 
                         responseMimeType: "application/json",
                         responseSchema: responseSchema,
-                        temperature: 0.0 // Set to absolute zero for strict, deterministic accuracy
+                        temperature: 0.0 // Zero temperature for deterministic grading
                     }
                 });
 
@@ -184,8 +162,7 @@ ${language === 'ml'
 
         if (!parsedData) throw lastError || new Error("All models failed.");
 
-        if (rawAudioPath && fs.existsSync(rawAudioPath)) fs.unlinkSync(rawAudioPath);
-        if (processedAudioPath && fs.existsSync(processedAudioPath) && processedAudioPath !== rawAudioPath) fs.unlinkSync(processedAudioPath);
+        if (fs.existsSync(rawAudioPath)) fs.unlinkSync(rawAudioPath);
 
         res.json({
             status: "success",
@@ -196,7 +173,6 @@ ${language === 'ml'
     } catch (error) {
         console.error("❌ Error during processing:", error);
         if (rawAudioPath && fs.existsSync(rawAudioPath)) fs.unlinkSync(rawAudioPath);
-        if (processedAudioPath && fs.existsSync(processedAudioPath) && processedAudioPath !== rawAudioPath) fs.unlinkSync(processedAudioPath);
         res.status(500).json({ error: "Failed to process audio." });
     }
 });
