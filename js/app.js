@@ -1,6 +1,6 @@
 /**
  * Quran AI Coach - Complete Updated JS
- * Fixes: Prevented Double Animation on App Load, Added Animation Canceler
+ * Fixes: Fixed State Leakage / Cache Wiping on Logout for Multi-Account Security
  */
 
 const firebaseConfig = {
@@ -35,7 +35,6 @@ const app = (() => {
     let hasAnimatedDashboard = false; 
     let currentViewDate = new Date();
 
-    // Animation Trackers to prevent overlapping animations
     let goalAnimFrame = null;
     let goalAnimTimeout = null;
 
@@ -77,6 +76,9 @@ const app = (() => {
             const firstName = appData.profile.name.split(' ')[0];
             if(nameDisplay) nameDisplay.textContent = firstName;
             if(avatarDisplay) avatarDisplay.textContent = firstName.charAt(0).toUpperCase();
+        } else {
+            if(nameDisplay) nameDisplay.textContent = "Profile";
+            if(avatarDisplay) avatarDisplay.textContent = "U";
         }
     };
 
@@ -170,7 +172,6 @@ const app = (() => {
         window.requestAnimationFrame(step);
     };
 
-    // FIXED: Cancels previous animation to prevent overlap/double-rendering
     const animateGoal = (textEl, barEl, ringEl, endPct, duration) => {
         if (goalAnimFrame) cancelAnimationFrame(goalAnimFrame);
         if (goalAnimTimeout) clearTimeout(goalAnimTimeout);
@@ -214,7 +215,6 @@ const app = (() => {
         }
 
         if (localDataLoaded) {
-            // FIXED: Loads cache silently (false) so it doesn't double-animate before Firebase loads
             updateDashboard(false); 
         }
         
@@ -243,23 +243,42 @@ const app = (() => {
         } catch (e) { console.error("Failed to load surahs", e); }
     };
 
+    // --- SECURITY FIX: WIPE STATE BEFORE LOADING NEW USER DATA ---
     const loadUserData = async (user) => {
         currentUser = user;
         try {
+            // 1. Reset state completely so old user's data doesn't leak
+            appData.profile = { name: user.displayName || '' };
+            appData.goals = { targetSessions: 5 };
+            appData.bookmark = null;
+            appData.history = [];
+            
+            // 2. Clear out any leftover form fields from previous user
+            if(document.getElementById('profile-name')) document.getElementById('profile-name').value = '';
+            if(document.getElementById('profile-username')) document.getElementById('profile-username').value = '';
+            if(document.getElementById('profile-phone')) document.getElementById('profile-phone').value = '';
+            
+            // 3. Fetch New User's Data
             const userDoc = await db.collection('users').doc(user.uid).get();
             if (userDoc.exists) {
                 if (userDoc.data().profile) appData.profile = userDoc.data().profile;
                 if (userDoc.data().goals) appData.goals = userDoc.data().goals;
+                
+                // Securely fetch bookmark
                 if (userDoc.data().bookmark) {
                     appData.bookmark = userDoc.data().bookmark;
                     localStorage.setItem('quranCachedBookmark', JSON.stringify(appData.bookmark));
+                } else {
+                    localStorage.removeItem('quranCachedBookmark'); // Destroy old cached bookmark
                 }
                 
+                // Populate forms securely
                 if(document.getElementById('profile-name')) document.getElementById('profile-name').value = appData.profile.name || '';
                 if(document.getElementById('profile-username')) document.getElementById('profile-username').value = appData.profile.username || '';
                 if(document.getElementById('profile-phone')) document.getElementById('profile-phone').value = appData.profile.phone || '';
                 if(document.getElementById('goal-target-sessions')) document.getElementById('goal-target-sessions').value = appData.goals.targetSessions || 5;
             }
+            
             if(document.getElementById('profile-email')) {
                 document.getElementById('profile-email').value = user.email || '';
             }
@@ -295,6 +314,28 @@ const app = (() => {
                 await db.collection('users').doc(currentUser.uid).collection('history').doc(newEntry.id.toString()).set(newEntry);
             }
         } catch (error) { console.error("Error saving data:", error); }
+    };
+
+    // --- SECURITY FIX: WIPE ALL LOCAL CACHE ON LOGOUT ---
+    const logout = () => { 
+        localStorage.removeItem('quranCachedHistory');
+        localStorage.removeItem('quranCachedBookmark');
+        
+        // Reset local state variables
+        appData = {
+            history: [],
+            theme: 'dark',
+            profile: { name: '' },
+            goals: { targetSessions: 5 },
+            bookmark: null 
+        };
+        
+        // Reset UI Elements
+        updateHeaderProfile();
+        const bookmarkSection = document.getElementById('continue-practice-section');
+        if(bookmarkSection) bookmarkSection.style.display = 'none';
+        
+        auth.signOut(); 
     };
 
     const saveProfile = async () => {
@@ -408,8 +449,6 @@ const app = (() => {
             }
         } catch(err) { alert(err.message); }
     };
-
-    const logout = () => { auth.signOut(); };
 
     const toggleLanguage = () => {
         currentLang = currentLang === 'en' ? 'ml' : 'en';
@@ -918,6 +957,8 @@ const app = (() => {
                 bookmarkName.textContent = `${bName} • ${verseLabel} ${appData.bookmark.verse || 1}`;
                 bookmarkSection.style.display = 'block';
             }
+        } else if (bookmarkSection) {
+            bookmarkSection.style.display = 'none';
         }
 
         const todayStr = new Date().toDateString();
