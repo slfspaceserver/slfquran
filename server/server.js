@@ -87,15 +87,18 @@ async function normalizeAudio(inputPath) {
     });
 }
 
+// UPDATE: Fetching the Annotated Tajweed Version
 async function fetchSurahReferenceText(surahId) {
     try {
-        const response = await fetch(`https://api.alquran.cloud/v1/surah/${surahId}/quran-uthmani`);
+        // Changed from quran-uthmani to ar.tajweed
+        const response = await fetch(`https://api.alquran.cloud/v1/surah/${surahId}/ar.tajweed`);
         const data = await response.json();
         if (data && data.data && data.data.ayahs) {
+            // Returns text with [h:...], [m:...] tags that map where Tajweed rules apply
             return data.data.ayahs.map(a => `[Verse ${a.numberInSurah}]: ${a.text}`).join('\n');
         }
     } catch (err) {
-        console.warn("⚠️ Could not fetch ground truth reference text:", err);
+        console.warn("⚠️ Could not fetch Tajweed ground truth reference text:", err);
     }
     return "Reference text unavailable.";
 }
@@ -118,7 +121,7 @@ app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
         // Step 1: Normalize audio via FFmpeg
         processedAudioPath = await normalizeAudio(rawAudioPath);
 
-        // Step 2: Fetch Uthmani Ground Truth
+        // Step 2: Fetch Annotated Tajweed Ground Truth
         const groundTruthText = await fetchSurahReferenceText(surahId);
 
         // Step 3: Upload audio to Gemini File Manager
@@ -127,23 +130,20 @@ app.post('/api/analyze', upload.single('audioFile'), async (req, res) => {
             displayName: `Recitation_Surah_${surahId}`,
         });
 
-        // Step 4: Chain-of-Thought (CoT) Prompting
+        // Step 4: Chain-of-Thought (CoT) Prompting with Tajweed Map
         const promptText = `
 You are an expert Qari, Master Tajweed Evaluator, and Hafiz.
-Analyze the user's recitation audio against the official Uthmani ground truth text below.
+Analyze the user's recitation audio strictly against the mapped Tajweed text below.
 
-### OFFICIAL UTHMANI GROUND TRUTH TEXT:
+### OFFICIAL TAJWEED REFERENCE MAP:
 ${groundTruthText}
+(Note: The text contains markup indicating exact Tajweed rules. Use this as your absolute grading key).
 
 ### STEP-BY-STEP EVALUATION METHOD:
-1. LISTEN & TRANSCRIBE: Listen to the audio and mentally align each phrase verse-by-verse with the ground truth text above.
+1. CHEAT SHEET VERIFICATION: Compare the audio directly against the Tajweed Reference Map provided above. 
 2. HIFZ (MEMORIZATION): Identify skipped words, misread diacritics (Harakat), or omitted verses.
-3. MAKHARIJ (PRONUNCIATION): Check phonetic accuracy of throat and heavy/light letters (e.g. ح vs ه, ع vs ا, ص vs س, ط vs ت).
-4. TAJWEED RULES:
-   - Madd (Elongation): Verify correct counts (2, 4, 6 Harakat).
-   - Ghunnah & Nasalization: Check duration on Noon/Meem Mushaddad, Ikhfa, and Idgham.
-   - Qalqalah: Check bouncing sound on Qaf, Taa, Ba, Jeem, Dal.
-5. FAIR DEDUCTIONS:
+3. STRICT TAJWEED ALIGNMENT: Only penalize the user if they miss a rule that is explicitly marked in the Reference Map (e.g., Madd, Ghunnah, Qalqalah, Ikhfa). Check heavy/light letter pronunciation.
+4. FAIR DEDUCTIONS:
    - Start at 100%.
    - Deduct 5-10 points per clear error.
    - Do NOT penalize natural pauses between verses or minor dialect variations.
